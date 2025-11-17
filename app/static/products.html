@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Ürün Bulk Import</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body{font-family:system-ui,Arial;padding:18px;max-width:1000px;margin:auto}
+    input, button{padding:8px;margin:6px}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #ddd;padding:8px}
+    th{background:#f2f2f2}
+    .small{font-size:13px;color:#666}
+    .ok{color:green}
+    .err{color:red}
+  </style>
+</head>
+<body>
+  <h1>Ürün Toplu İçe Aktarma</h1>
+  <p class="small">CSV formatı: <code>sku,name,category,barcode_gtin,shelf_life_days</code></p>
+
+  <input type="file" id="csvFile" accept=".csv,text/csv" />
+  <button id="btnPreview">Önizle</button>
+  <button id="btnUpload" disabled>Toplu Yükle</button>
+  <div id="msg"></div>
+
+  <div id="preview"></div>
+
+<script>
+function parseCSV(text){
+  // very light CSV parse: satırları al, virgülden split (basit CSV bekliyoruz)
+  const rows = text.split(/\r?\n/).map(r => r.trim()).filter(r=>r.length>0);
+  const data = [];
+  const headers = rows[0].split(',').map(h=>h.trim());
+  for(let i=1;i<rows.length;i++){
+    const cols = rows[i].split(',').map(c=>c.trim());
+    const obj = {};
+    for(let k=0;k<headers.length;k++){
+      obj[headers[k]] = cols[k] || "";
+    }
+    data.push(obj);
+  }
+  return {headers, data};
+}
+
+document.getElementById('btnPreview').addEventListener('click', async ()=>{
+  const f = document.getElementById('csvFile').files[0];
+  const msg = document.getElementById('msg');
+  const prev = document.getElementById('preview');
+  prev.innerHTML = ""; msg.textContent = "";
+  if(!f){ msg.innerHTML = '<span class="err">Önce CSV seçin</span>'; return; }
+  const txt = await f.text();
+  let parsed;
+  try{
+    parsed = parseCSV(txt);
+  } catch(e){
+    msg.innerHTML = '<span class="err">CSV parse hatası</span>'; return;
+  }
+  if(parsed.data.length===0){ msg.innerHTML = '<span class="err">CSV boş veya satır yok</span>'; return; }
+  // preview table
+  let html = '<table><thead><tr>';
+  parsed.headers.forEach(h=> html += `<th>${h}</th>`);
+  html += '</tr></thead><tbody>';
+  parsed.data.slice(0,50).forEach(r => {
+    html += '<tr>';
+    parsed.headers.forEach(h => html += `<td>${(r[h]||"")}</td>`);
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  prev.innerHTML = html;
+  document.getElementById('btnUpload').disabled = false;
+  // attach parsed to window for upload
+  window.__parsed_products = parsed;
+});
+
+document.getElementById('btnUpload').addEventListener('click', async ()=>{
+  const msg = document.getElementById('msg'); msg.textContent = "";
+  const parsed = window.__parsed_products;
+  if(!parsed || !parsed.data) { msg.innerHTML = '<span class="err">Önce önizle yapın</span>'; return; }
+
+  // Map rows to ProductCreate shape (sku,name,category,barcode_gtin,shelf_life_days)
+  const items = parsed.data.map(r => ({
+    sku: (r.sku||r.SKU||"").trim(),
+    name: (r.name||"").trim(),
+    category: (r.category||"").trim(),
+    barcode_gtin: (r.barcode_gtin||r.barcode||"").trim(),
+    shelf_life_days: r.shelf_life_days ? parseInt(r.shelf_life_days,10) : null
+  })).filter(it => it.sku && it.name);
+
+  if(items.length===0){ msg.innerHTML = '<span class="err">Geçerli satır yok (sku & name gerekli)</span>'; return; }
+
+  msg.innerHTML = 'Yükleniyor...';
+  try{
+    const resp = await fetch('/products/bulk', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(items)
+    });
+    const j = await resp.json();
+    if(resp.ok){
+      msg.innerHTML = `<span class="ok">Başarı: ${j.created} yeni ürün eklendi. Toplam ürün sayısı: ${j.count}</span>`;
+    } else {
+      msg.innerHTML = `<span class="err">Sunucu hatası: ${JSON.stringify(j)}</span>`;
+    }
+  } catch(e){
+    msg.innerHTML = `<span class="err">Ağ hatası: ${e.message}</span>`;
+  }
+});
+</script>
+</body>
+</html>

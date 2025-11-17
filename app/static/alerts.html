@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Alerts — RetailAI</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+  <div class="max-w-6xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-bold">SKT Yaklaşan Ürünler</h1>
+      <a class="text-sm text-blue-600" href="/ui">← Dashboard</a>
+    </div>
+
+    <div id="controls" class="mb-4">
+      <label class="text-sm mr-2">Store ID: <input id="storeId" type="number" value="1" class="border px-2 py-1 rounded" /></label>
+      <label class="text-sm mr-2">Gün (lookahead): <input id="days" type="number" value="30" class="border px-2 py-1 rounded w-24" /></label>
+      <button id="btnRefresh" class="bg-blue-600 text-white px-3 py-1 rounded">Yenile</button>
+    </div>
+
+    <div id="msg"></div>
+
+    <table class="min-w-full bg-white rounded shadow">
+      <thead class="bg-gray-100">
+        <tr class="text-left">
+          <th class="p-2">Ürün</th>
+          <th class="p-2">SKT</th>
+          <th class="p-2">Kalan gün</th>
+          <th class="p-2">Severity</th>
+          <th class="p-2">Status</th>
+          <th class="p-2">Aksiyon</th>
+        </tr>
+      </thead>
+      <tbody id="alertsTbody" class="text-sm"></tbody>
+    </table>
+  </div>
+
+<script>
+async function fetchAlerts() {
+  const store = document.getElementById('storeId').value || 1;
+  const days = document.getElementById('days').value || 30;
+  document.getElementById('msg').textContent = "Yükleniyor...";
+  const res = await fetch(`/alerts/expiry/full?store_id=${store}&days=${days}`);
+  if(!res.ok){
+    document.getElementById('msg').textContent = "Uyarılar yüklenemedi: " + res.status;
+    return;
+  }
+  const data = await res.json();
+  document.getElementById('msg').textContent = "";
+  const tbody = document.getElementById('alertsTbody');
+  tbody.innerHTML = "";
+  if(!data || data.length === 0){
+    tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">Uyarı yok</td></tr>';
+    return;
+  }
+  for(const a of data){
+    const tr = document.createElement('tr');
+    tr.className = "border-t";
+    const pname = a.product_id ? `#${a.product_id}` : '';
+    tr.innerHTML = `
+      <td class="p-2">${pname}</td>
+      <td class="p-2">${a.expiry_date}</td>
+      <td class="p-2">${a.days_left}</td>
+      <td class="p-2">${a.severity}</td>
+      <td class="p-2">${a.status || 'new'}${a.snooze_until? ' (ertele->'+a.snooze_until+')':''}</td>
+      <td class="p-2">
+        <button data-id="${a.id}" class="ack-btn bg-green-100 text-green-700 px-2 py-1 rounded mr-2">Acknowledge</button>
+        <button data-id="${a.id}" class="snooze-btn bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Snooze 1d</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+
+  document.querySelectorAll('.ack-btn').forEach(b=> b.addEventListener('click', async (ev)=>{
+    const id = ev.target.dataset.id;
+    await fetch(`/alerts/${id}/ack`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})});
+    fetchAlerts();
+  }));
+  document.querySelectorAll('.snooze-btn').forEach(b=> b.addEventListener('click', async (ev)=>{
+    const id = ev.target.dataset.id;
+    await fetch(`/alerts/${id}/snooze`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({days:1})});
+    fetchAlerts();
+  }));
+}
+
+document.getElementById('btnRefresh').addEventListener('click', fetchAlerts);
+window.addEventListener('load', fetchAlerts);
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <title>Fatura Detayı</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui, Arial; max-width:900px; margin:24px auto; padding:0 12px}
+    input, button{padding:8px; margin:4px}
+    table{width:100%; border-collapse:collapse; margin-top:12px}
+    th, td{border:1px solid #ddd; padding:8px; font-size:14px}
+    th{background:#f5f5f5; text-align:left}
+    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <h1>Fatura Detayı</h1>
+  <div class="row">
+    <label>Invoice ID:
+      <input id="invId" type="number" placeholder="örn: 1" />
+    </label>
+    <button id="btnLoad">Yükle</button>
+    <a id="csvLink" href="#" target="_blank" style="margin-left:auto;">CSV indir</a>
+  </div>
+
+  <table id="linesTbl" style="display:none">
+    <thead>
+      <tr>
+        <th>Line ID</th><th>Ürün Adı</th><th>Product ID</th><th>Qty</th><th>Birim Fiyat</th><th>Kaydet</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+async function loadInvoice(id){
+  const r = await fetch(`/invoice/${id}`);
+  const text = await r.text();
+  let data=null;
+  try{ data = JSON.parse(text); }catch(e){ alert(`Hata: ${r.status} ${text.slice(0,200)}`); return; }
+  if(!r.ok){ alert(`Sunucu hatası: ${r.status}`); return; }
+
+  document.getElementById("csvLink").href = `/invoice/${id}/export.csv`;
+
+  const tbl = document.getElementById("linesTbl");
+  const tbody = tbl.querySelector("tbody");
+  tbody.innerHTML = "";
+  for(const L of data.lines){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${L.id}</td>
+      <td><input value="${(L.name_raw||"").replaceAll('"','&quot;')}" data-key="name_raw"/></td>
+      <td><input value="${L.product_id||""}" data-key="product_id" style="width:90px"/></td>
+      <td><input value="${L.qty}" data-key="qty" style="width:80px"/></td>
+      <td><input value="${L.unit_price}" data-key="unit_price" style="width:100px"/></td>
+      <td><button data-id="${L.id}">Kaydet</button></td>
+    `;
+    tr.querySelector("button").addEventListener("click", async (ev)=>{
+      const lineId = Number(ev.target.getAttribute("data-id"));
+      const inputs = tr.querySelectorAll("input");
+      const body = { line_id: lineId };
+      inputs.forEach(inp=>{
+        const k = inp.getAttribute("data-key");
+        let v = inp.value;
+        if(k==="product_id" || k==="qty" || k==="unit_price"){ v = v==="" ? null : Number(v); }
+        body[k] = v;
+      });
+      const rr = await fetch(`/invoice/line/update`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(body) });
+      alert(rr.ok ? "Kaydedildi" : "Kaydedilemedi");
+    });
+    tbody.appendChild(tr);
+  }
+  tbl.style.display = "";
+}
+
+document.getElementById("btnLoad").addEventListener("click", ()=>{
+  const id = document.getElementById("invId").value;
+  if(!id) return alert("ID gir");
+  loadInvoice(id);
+});
+</script>
+<script>
+/*
+  Typeahead for invoice lines.
+  - Finds inputs with class "product-choice" and data-line-id attribute.
+  - On typing, calls /products?q=... and shows simple dropdown.
+  - On selecting, calls POST /invoice/line/update to set product_id and updates UI.
+*/
+
+/* helper: create dropdown under an input */
+function createDropdown(input){
+  const dd = document.createElement('div');
+  dd.className = 'typeahead-dropdown';
+  dd.style.position = 'absolute';
+  dd.style.zIndex = 9999;
+  dd.style.background = 'white';
+  dd.style.border = '1px solid #e5e7eb';
+  dd.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+  dd.style.maxHeight = '220px';
+  dd.style.overflow = 'auto';
+  dd.style.minWidth = (input.offsetWidth) + 'px';
+  return dd;
+}
+
+/* position dropdown */
+function placeDropdown(input, dd){
+  const rect = input.getBoundingClientRect();
+  dd.style.left = (rect.left + window.scrollX) + 'px';
+  dd.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+}
+
+/* main attach */
+function attachTypeaheadToInput(input){
+  let timer = null;
+  let dd = null;
+
+  input.addEventListener('input', (e)=>{
+    const q = input.value.trim();
+    if(timer) clearTimeout(timer);
+    if(dd) dd.remove();
+    if(!q){
+      document.getElementById('searchRes')?.textContent && (document.getElementById('searchRes').textContent = '0 sonuç');
+      return;
+    }
+    timer = setTimeout(async ()=>{
+      try{
+        const res = await fetch(`/products?q=${encodeURIComponent(q)}&limit=10`);
+        if(!res.ok) throw new Error(res.status);
+        const items = await res.json();
+        if(dd) dd.remove();
+        dd = createDropdown(input);
+        placeDropdown(input, dd);
+        if(items.length === 0){
+          const n = document.createElement('div');
+          n.className = 'p-2 text-sm text-gray-500';
+          n.textContent = 'Bulunamadı';
+          dd.appendChild(n);
+        } else {
+          items.forEach(it=>{
+            const r = document.createElement('div');
+            r.className = 'p-2 cursor-pointer hover:bg-gray-100';
+            r.style.fontSize = '13px';
+            r.textContent = `${it.name} • ${it.sku || ''} ${it.barcode_gtin? '• ' + it.barcode_gtin : ''}`;
+            r.addEventListener('click', async ()=>{
+              // seçildi: product_id'i invoice line'a kaydet
+              const lineId = input.dataset.lineId;
+              const payload = { line_id: parseInt(lineId), product_id: it.id, name_raw: it.name };
+              try {
+                const upd = await fetch('/invoice/line/update', {
+                  method: 'POST',
+                  headers: {'Content-Type':'application/json'},
+                  body: JSON.stringify(payload)
+                });
+                if(!upd.ok) throw new Error('update failed');
+                // UI güncelle: product-id input'a seçilen id koy
+                input.value = it.id;
+                // varsa line name alanını güncelle
+                const nameEl = document.querySelector(`[data-line-name][data-line-id="${lineId}"]`);
+                if(nameEl) nameEl.textContent = it.name;
+              }catch(err){
+                console.error('line update err', err);
+                alert('Satır güncellenemedi: ' + err);
+              }
+              dd.remove();
+              dd = null;
+            });
+            dd.appendChild(r);
+          });
+        }
+        document.body.appendChild(dd);
+      }catch(err){
+        console.error('typeahead err', err);
+      }
+    }, 220); // debounce
+  });
+
+  // hide dropdown on blur
+  input.addEventListener('blur', ()=> {
+    setTimeout(()=>{ if(dd) dd.remove(); dd=null; }, 180);
+  });
+
+  // reposition on scroll/resize
+  window.addEventListener('scroll', ()=> dd && placeDropdown(input, dd));
+  window.addEventListener('resize', ()=> dd && placeDropdown(input, dd));
+}
+
+/* initialize: find inputs */
+function initInvoiceTypeaheads(){
+  // find by class
+  const inputs = document.querySelectorAll('.product-choice[data-line-id]');
+  inputs.forEach(inp => attachTypeaheadToInput(inp));
+}
+
+// run on load (and if invoice rows are rendered dynamically, call this after render)
+window.addEventListener('load', initInvoiceTypeaheads);
+
+// If invoice.html supports query param ?invoice_id=..., we can auto-focus first product input:
+// optional:
+(function autoFocusFirst(){
+  const first = document.querySelector('.product-choice[data-line-id]');
+  if(first) first.focus();
+})();
+</script>
+
+<style>
+/* Minimal style for dropdown (can be moved to CSS) */
+.typeahead-dropdown::-webkit-scrollbar { height: 6px; width: 6px; }
+</style>
+
+</body>
+</html>
