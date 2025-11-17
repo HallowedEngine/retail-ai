@@ -21,3 +21,11 @@ class SalesRow(BaseModel):
 class IngestSalesReq(BaseModel):
     store_id: int = 1
     rows: List[SalesRow]
+
+class ProductCreate(BaseModel):
+    sku: str
+    name: str
+    category: str | None = None
+    barcode_gtin: str | None = None
+    shelf_life_days: int | None = None
+    image_url: str | None = None  # ← YENİ

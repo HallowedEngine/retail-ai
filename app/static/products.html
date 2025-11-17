@@ -2,108 +2,144 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <title>Ürün Bulk Import</title>
+  <title>Ürün Toplu İçe Aktarma</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    body{font-family:system-ui,Arial;padding:18px;max-width:1000px;margin:auto}
-    input, button{padding:8px;margin:6px}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{border:1px solid #ddd;padding:8px}
-    th{background:#f2f2f2}
-    .small{font-size:13px;color:#666}
-    .ok{color:green}
-    .err{color:red}
+    body{font-family:system-ui,Arial,sans-serif;padding:20px;max-width:1100px;margin:auto;background:#f9fafb}
+    h1{font-size:1.8rem;font-weight:700;color:#1f2937}
+    .card{background:white;border-radius:12px;padding:24px;box-shadow:0 4px 12px rgba(0,0,0,0.05);margin-top:16px}
+    input, button{padding:12px 16px;margin:8px 4px;border-radius:8px;font-size:15px}
+    input[type=file]{border:2px dashed #94a3b8;padding:20px;background:#f8fafc;width:100%;box-sizing:border-box}
+    button{background:#3b82f6;color:white;border:none;cursor:pointer;font-weight:600}
+    button:hover{background:#2563eb}
+    button:disabled{background:#94a3b8;cursor:not-allowed}
+    button#btnUpload{background:#10b981}
+    button#btnUpload:hover{background:#059669}
+    table{width:100%;border-collapse:separate;border-spacing:0;margin-top:16px;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+    th{background:#1e40af;color:white;padding:16px;text-align:left;font-weight:600}
+    td{padding:14px 16px;border-bottom:1px solid #e5e7eb}
+    tr:hover{background:#f1f5f9}
+    .small{font-size:13px;color:#64748b;margin-bottom:16px}
+    .ok{color:#059669;font-weight:600}
+    .err{color:#dc2626;font-weight:600}
+    .preview-img{width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb}
+    #msg{margin-top:16px;font-size:15px}
   </style>
 </head>
 <body>
   <h1>Ürün Toplu İçe Aktarma</h1>
-  <p class="small">CSV formatı: <code>sku,name,category,barcode_gtin,shelf_life_days</code></p>
+  <p class="small">
+    Desteklenen sütunlar: <code>sku</code>, <code>name</code>, <code>category</code>, <code>barcode_gtin</code>, <code>shelf_life_days</code>, 
+    <strong>yeni:</strong> <code>image_url</code> (isteğe bağlı)
+  </p>
 
-  <input type="file" id="csvFile" accept=".csv,text/csv" />
-  <button id="btnPreview">Önizle</button>
-  <button id="btnUpload" disabled>Toplu Yükle</button>
-  <div id="msg"></div>
+  <div class="card">
+    <input type="file" id="csvFile" accept=".csv,text/csv" />
+    <div>
+      <button id="btnPreview">Önizle</button>
+      <button id="btnUpload" disabled>Toplu Yükle</button>
+    </div>
+    <div id="msg"></div>
+  </div>
 
-  <div id="preview"></div>
+  <div id="preview" class="card"></div>
 
 <script>
+// Basit CSV parser
 function parseCSV(text){
-  // very light CSV parse: satırları al, virgülden split (basit CSV bekliyoruz)
-  const rows = text.split(/\r?\n/).map(r => r.trim()).filter(r=>r.length>0);
+  const rows = text.split(/\r?\n/).map(r => r.trim()).filter(r => r.length > 0);
+  if (rows.length === 0) return {headers: [], data: []};
+  const headers = rows[0].split(',').map(h => h.trim());
   const data = [];
-  const headers = rows[0].split(',').map(h=>h.trim());
-  for(let i=1;i<rows.length;i++){
-    const cols = rows[i].split(',').map(c=>c.trim());
+  for(let i = 1; i < rows.length; i++){
+    const cols = rows[i].split(',').map(c => c.trim());
     const obj = {};
-    for(let k=0;k<headers.length;k++){
-      obj[headers[k]] = cols[k] || "";
-    }
+    headers.forEach((h, idx) => obj[h] = (cols[idx] || "").replace(/"/g, '')); // tırnak temizle
     data.push(obj);
   }
   return {headers, data};
 }
 
-document.getElementById('btnPreview').addEventListener('click', async ()=>{
+// Placeholder SVG
+const PLACEHOLDER = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjZTNlN2ZmIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5ZmE1ZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=";
+
+document.getElementById('btnPreview').addEventListener('click', async () => {
   const f = document.getElementById('csvFile').files[0];
   const msg = document.getElementById('msg');
   const prev = document.getElementById('preview');
-  prev.innerHTML = ""; msg.textContent = "";
-  if(!f){ msg.innerHTML = '<span class="err">Önce CSV seçin</span>'; return; }
+  prev.innerHTML = ""; msg.innerHTML = "";
+
+  if (!f) { msg.innerHTML = '<span class="err">CSV seçmedin kanka</span>'; return; }
+
   const txt = await f.text();
   let parsed;
-  try{
-    parsed = parseCSV(txt);
-  } catch(e){
-    msg.innerHTML = '<span class="err">CSV parse hatası</span>'; return;
+  try { parsed = parseCSV(txt); } catch(e) {
+    msg.innerHTML = '<span class="err">CSV bozuk, kontrol et</span>'; return;
   }
-  if(parsed.data.length===0){ msg.innerHTML = '<span class="err">CSV boş veya satır yok</span>'; return; }
-  // preview table
-  let html = '<table><thead><tr>';
-  parsed.headers.forEach(h=> html += `<th>${h}</th>`);
-  html += '</tr></thead><tbody>';
-  parsed.data.slice(0,50).forEach(r => {
-    html += '<tr>';
-    parsed.headers.forEach(h => html += `<td>${(r[h]||"")}</td>`);
-    html += '</tr>';
+
+  if (parsed.data.length === 0) {
+    msg.innerHTML = '<span class="err">CSV’de satır yok</span>'; return;
+  }
+
+  let html = `<table><thead><tr><th>Görsel</th>`;
+  parsed.headers.forEach(h => html += `<th>${h}</th>`);
+  html += `</tr></thead><tbody>`;
+
+  parsed.data.slice(0, 200).forEach(r => {
+    const img = (r.image_url || r.Image_url || r.image || "").trim();
+    html += `<tr>
+      <td><img src="${img || PLACEHOLDER}" class="preview-img" onerror="this.src='${PLACEHOLDER}'" alt="Görsel"></td>`;
+    parsed.headers.forEach(h => {
+      html += `<td>${(r[h] || "").replace(/</g, "&lt;")}</td>`;
+    });
+    html += `</tr>`;
   });
-  html += '</tbody></table>';
+  html += `</tbody></table>`;
+  if (parsed.data.length > 200) html += `<p class="small">... ve ${parsed.data.length - 200} satır daha</p>`;
+
   prev.innerHTML = html;
   document.getElementById('btnUpload').disabled = false;
-  // attach parsed to window for upload
-  window.__parsed_products = parsed;
+  window.__csv_data = parsed;
 });
 
-document.getElementById('btnUpload').addEventListener('click', async ()=>{
-  const msg = document.getElementById('msg'); msg.textContent = "";
-  const parsed = window.__parsed_products;
-  if(!parsed || !parsed.data) { msg.innerHTML = '<span class="err">Önce önizle yapın</span>'; return; }
+document.getElementById('btnUpload').addEventListener('click', async () => {
+  const msg = document.getElementById('msg');
+  msg.innerHTML = "Yükleniyor kanka, bekle...";
 
-  // Map rows to ProductCreate shape (sku,name,category,barcode_gtin,shelf_life_days)
+  const parsed = window.__csv_data;
+  if (!parsed) return;
+
   const items = parsed.data.map(r => ({
-    sku: (r.sku||r.SKU||"").trim(),
-    name: (r.name||"").trim(),
-    category: (r.category||"").trim(),
-    barcode_gtin: (r.barcode_gtin||r.barcode||"").trim(),
-    shelf_life_days: r.shelf_life_days ? parseInt(r.shelf_life_days,10) : null
-  })).filter(it => it.sku && it.name);
+    sku: (r.sku || r.SKU || "").trim(),
+    name: (r.name || r.Name || "").trim(),
+    category: (r.category || r.Category || "").trim() || null,
+    barcode_gtin: (r.barcode_gtin || r.barcode || r.gtin || "").trim() || null,
+    shelf_life_days: r.shelf_life_days ? parseInt(r.shelf_life_days, 10) : null,
+    image_url: (r.image_url || r.Image_url || r.image || "").trim() || null
+  })).filter(p => p.sku && p.name);
 
-  if(items.length===0){ msg.innerHTML = '<span class="err">Geçerli satır yok (sku & name gerekli)</span>'; return; }
+  if (items.length === 0) {
+    msg.innerHTML = '<span class="err">Hiç geçerli ürün yok (sku + name zorunlu)</span>';
+    return;
+  }
 
-  msg.innerHTML = 'Yükleniyor...';
-  try{
+  try {
     const resp = await fetch('/products/bulk', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(items)
     });
-    const j = await resp.json();
-    if(resp.ok){
-      msg.innerHTML = `<span class="ok">Başarı: ${j.created} yeni ürün eklendi. Toplam ürün sayısı: ${j.count}</span>`;
+
+    const result = await resp.json();
+
+    if (resp.ok) {
+      msg.innerHTML = `<span class="ok">ASLANIM! ${result.created} yeni ürün eklendi. Toplam ürün: ${result.count}</span>`;
+      document.getElementById('btnUpload').disabled = true;
     } else {
-      msg.innerHTML = `<span class="err">Sunucu hatası: ${JSON.stringify(j)}</span>`;
+      msg.innerHTML = `<span class="err">Hata oldu: ${JSON.stringify(result)}</span>`;
     }
-  } catch(e){
-    msg.innerHTML = `<span class="err">Ağ hatası: ${e.message}</span>`;
+  } catch (e) {
+    msg.innerHTML = `<span class="err">Bağlantı koptu: ${e.message}</span>`;
   }
 });
 </script>

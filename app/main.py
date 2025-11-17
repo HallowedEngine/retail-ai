@@ -3,11 +3,13 @@ import os
 import io
 import csv
 import json
+import secrets
 from datetime import datetime, date, timedelta
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Path, Body
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Path, Body, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
@@ -24,10 +26,35 @@ from .utils import save_upload, file_md5
 from .match import build_product_name_map, fuzzy_match_product
 from .gs1 import parse_gs1_from_text, parse_expiry_from_free_text
 
+# ——————————————————— YENİ: BASIC AUTH ———————————————————
+security = HTTPBasic()
+
+def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, "admin")
+    correct_password = secrets.compare_digest(credentials.password, "retailai2025")  # istediğin zaman değiştir
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Yetkisiz erişim",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+# ——————————————————— AUTH BİTİŞ ———————————————————
+
 # create tables if not exist
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Retail Demo")
+# ——————————————————— GLOBAL AUTH (bütün API ve UI otomatik korunur) ———————————————————
+app = FastAPI(
+    title="Retail Demo",
+    dependencies=[Depends(verify_auth)]  # ← BU SATIR HER ŞEYİ ŞİFRELİYOR!
+)
+
+# Auth’suz kalmasını istediğin endpoint’ler (rahatlık için)
+@app.get("/health")
+async def health():
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
@@ -219,11 +246,11 @@ def invoices_recent(limit: int = 20, db: Session = Depends(get_db)):
     out = []
     for inv in q:
         cnt = db.query(InvoiceLine).filter_by(invoice_id=inv.id).count()
-        out.append({"id": inv.id, "created_at": inv.created_at.isoformat() if inv.created_at else None, "line_count": cnt})
+        out.append({"id": inv.id, "created_at": inv.created_at.isoisoformat() if inv.created_at else None, "line_count": cnt})
     return out
 
 # -----------------------------
-# Diğer mevcut endpointler
+# Diğer mevcut endpointler (hepsi otomatik auth’lu artık)
 # -----------------------------
 @app.post("/batch/scan")
 def batch_scan(payload: BatchScanReq, db: Session = Depends(get_db)):
@@ -294,10 +321,13 @@ def reorder_suggestions(store_id: int, product_id: int, current_stock: float = 0
 @app.post("/seed/products")
 def seed_products(db: Session = Depends(get_db)):
     demo = [
-        {"sku":"SUT1L","name":"1L Süt","category":"sut","barcode_gtin":"869000000001","shelf_life_days":7},
-        {"sku":"YOG500","name":"500g Yoğurt","category":"sut","barcode_gtin":"869000000002","shelf_life_days":10},
-        {"sku":"EKM200","name":"Ekmek 200g","category":"firin","barcode_gtin":"869000000003","shelf_life_days":2},
-    ]
+    {"sku":"SUT1L","name":"1L Süt","category":"sut","barcode_gtin":"869000000001","shelf_life_days":7,
+     "image_url":"https://i.hizliresim.com/abc123/sut.jpg"},
+    {"sku":"YOG500","name":"500g Yoğurt","category":"sut","barcode_gtin":"869000000002","shelf_life_days":10,
+     "image_url":"https://i.hizliresim.com/xyz789/yogurt.jpg"},
+    {"sku":"EKM200","name":"Ekmek 200g","category":"firin","barcode_gtin":"869000000003","shelf_life_days":2,
+     "image_url":"https://i.hizliresim.com/123abc/ekmek.jpg"},
+]
     for d in demo:
         if not db.query(Product).filter_by(sku=d["sku"]).first():
             db.add(Product(**d))
@@ -331,7 +361,6 @@ async def batch_scan_from_image(
 
 @app.post("/products")
 def create_product(body: ProductCreate, db: Session = Depends(get_db)):
-    # varsa aynı barkod/sku’yu tekrar ekleme
     if body.barcode_gtin:
         exists = db.query(Product).filter(Product.barcode_gtin == body.barcode_gtin).first()
         if exists:
@@ -348,7 +377,6 @@ def create_product(body: ProductCreate, db: Session = Depends(get_db)):
 def create_products_bulk(items: List[ProductCreate], db: Session = Depends(get_db)):
     created = 0
     for body in items:
-        # skip if barcode or sku exists
         if body.barcode_gtin:
             exists = db.query(Product).filter(Product.barcode_gtin == body.barcode_gtin).first()
             if exists:
@@ -362,15 +390,8 @@ def create_products_bulk(items: List[ProductCreate], db: Session = Depends(get_d
 
 @app.get("/products")
 def products_list(q: str | None = None, sku_or_id: str | None = None, limit: int = 30, db: Session = Depends(get_db)):
-    """
-    Ürün arama:
-      - q: serbest metin (isim veya sku)
-      - sku_or_id: doğrudan sku veya id veya barcode
-    Returns: list of {id, sku, name, barcode_gtin, category}
-    """
     qs = db.query(Product)
     if sku_or_id:
-        # eğer tam sayıysa id ile dene
         if sku_or_id.isdigit():
             qs = qs.filter(Product.id == int(sku_or_id))
         else:
@@ -403,7 +424,6 @@ def ensure_expiry_alert_columns(db: Session):
         cols = [r[1] for r in db.execute(f"PRAGMA table_info({table})").fetchall()]
     except Exception:
         return
-    # add 'status' and 'snooze_until' if missing
     try:
         if "status" not in cols:
             db.execute(f"ALTER TABLE {table} ADD COLUMN status TEXT DEFAULT 'new'")
@@ -416,11 +436,9 @@ def ensure_expiry_alert_columns(db: Session):
 
 @app.on_event("startup")
 def startup_migrations_and_checks():
-    # Ensure our optional columns are present for demo ack/snooze
     try:
         db = next(get_db())
         ensure_expiry_alert_columns(db)
-        # close generator if possible
         try:
             db.close()
         except Exception:
@@ -430,8 +448,6 @@ def startup_migrations_and_checks():
 
 @app.get("/dashboard/summary")
 def dashboard_summary(store_id: int = 1, days: int = 7, db: Session = Depends(get_db)):
-    """Return small summary for dashboard cards."""
-    # refresh alerts first (so alerts table is up-to-date)
     try:
         refresh_expiry_alerts(db, store_id, days)
     except Exception:
@@ -447,11 +463,9 @@ def dashboard_summary(store_id: int = 1, days: int = 7, db: Session = Depends(ge
     except Exception:
         expiry_count = 0
 
-    # recent invoices
     recent_invoices_q = db.query(Invoice).order_by(Invoice.id.desc()).limit(5).all()
     recent = [{"id": inv.id, "created_at": inv.created_at.isoformat() if inv.created_at else None} for inv in recent_invoices_q]
 
-    # low stock estimate: sum qty_on_hand per product from batches and compare to reorder policy min_stock or threshold 5
     low_stock_count = 0
     try:
         sub = db.query(Batch.product_id, func.sum(Batch.qty_on_hand).label("on_hand")).group_by(Batch.product_id).subquery()
@@ -472,7 +486,6 @@ def dashboard_summary(store_id: int = 1, days: int = 7, db: Session = Depends(ge
 
 @app.get("/alerts/expiry/full")
 def alerts_expiry_full(store_id: int = 1, days: int = 30, db: Session = Depends(get_db)):
-    """Detailed list of expiry alerts (for UI)."""
     try:
         refresh_expiry_alerts(db, store_id, days)
     except Exception:
@@ -530,11 +543,11 @@ def snooze_alert(alert_id: int, body: AlertActionReq = Body(...), db: Session = 
     return {"ok": True, "alert_id": alert_id, "snooze_until": str(snooze_until)}
 
 # -----------------------------
-# Root & Static
+# Root & Static (UI da artık şifreli!)
 # -----------------------------
 @app.get("/")
 def root():
     return RedirectResponse(url="/ui")
 
-# Statik web'i EN SON mount et (app tanımlandıktan sonra)
+# Statik web'i EN SON mount et
 app.mount("/ui", StaticFiles(directory="app/static", html=True), name="static")

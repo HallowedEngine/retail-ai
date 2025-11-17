@@ -1,0 +1,12 @@
+[credentials]
+username = "admin"
+password = "retailai2025"  # değiştir istersen, güçlü yap
+
+[cookie]
+expiry_days = 30
+key = "some_signature_key"  # rastgele string, değiştir
+name = "retailai_cookie"
+
+[preauthorized]
+enabled = true
+users = { "admin" = "admin@retailai.com" }  # opsiyonel email

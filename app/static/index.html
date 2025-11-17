@@ -175,5 +175,36 @@
     resEl.textContent = 'arama desteklenmiyor (implementasyon gerek)';
   });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<canvas id="stockChart" height="100"></canvas>
+
+<script>
+// Dashboard summary çek
+fetch("/dashboard/summary")
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById("expiryCount").textContent = data.expiry_count || 0;
+    document.getElementById("lowStockCount").textContent = data.low_stock_count || 0;
+  });
+
+// Basit trend grafiği (örnek veri, sonra gerçek yaparız)
+new Chart(document.getElementById("stockChart"), {
+  type: "line",
+  data: {
+    labels: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
+    datasets: [{
+      label: "Stok Düşüş Trendi",
+      data: [65, 59, 80, 81, 56, 55, 40],
+      borderColor: "#ef4444",
+      backgroundColor: "rgba(239, 68, 68, 0.1)",
+      tension: 0.4
+    }]
+  },
+  options: { plugins: { legend: { display: false } } }
+});
+</script>
+
+
+
 </body>
 </html>

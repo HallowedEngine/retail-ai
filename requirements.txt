@@ -12,3 +12,4 @@ numpy
 python-dateutil
 rapidfuzz
 python-dotenv
+streamlit-authenticator==0.3.2
