@@ -3,93 +3,527 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>RetailAI — Dashboard</title>
+<title>Retail AI — Advanced Dashboard</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-  body { background: #f3f6fb; }
-  .brand { display:flex; gap:10px; align-items:center }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  * {
+    font-family: 'Inter', sans-serif;
+  }
+
+  body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Animated gradient background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    z-index: -1;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Glassmorphism cards */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    transition: all 0.3s ease;
+  }
+
+  .glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Stats card with gradient */
+  .stat-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .stat-card:hover::before {
+    opacity: 1;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  /* Icon containers */
+  .icon-container {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .stat-card:hover .icon-container {
+    transform: rotate(10deg) scale(1.1);
+  }
+
+  /* Pulse animation for alerts */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top: 3px solid white;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Table styles */
+  .glass-table {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(5px);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .glass-table thead {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-table tbody tr {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.2s ease;
+  }
+
+  .glass-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Button styles */
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  }
+
+  /* Status badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .badge-success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+  }
+
+  .badge-warning {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+  }
+
+  .badge-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  /* Chart container */
+  .chart-container {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Number counter animation */
+  .counter {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Glow effect */
+  .glow {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Header */
+  .header {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 20px 30px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    margin-bottom: 30px;
+  }
+
+  /* Navigation */
+  nav a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    font-weight: 500;
+  }
+
+  nav a:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Search input */
+  .search-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: white;
+    width: 100%;
+    transition: all 0.3s ease;
+  }
+
+  .search-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .search-input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+  }
 </style>
 </head>
-<body class="min-h-screen antialiased">
+<body class="antialiased">
   <div class="max-w-7xl mx-auto p-6">
-    <header class="flex items-center justify-between mb-6">
-      <div class="brand">
-        <!-- Basit logo (SVG) -->
-        <div class="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="1" y="3" width="22" height="18" rx="3" fill="#1f7aec"/>
-            <path d="M6 8h12M6 12h12M6 16h8" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
-          </svg>
+    <!-- Header -->
+    <header class="header flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+          <i class="fas fa-chart-line text-purple-600 text-2xl"></i>
         </div>
         <div>
-          <div class="text-xl font-semibold">RetailAI</div>
-          <div class="text-sm text-gray-500">Akıllı Stok & SKT Yönetimi</div>
+          <h1 class="text-2xl font-bold text-white">Retail AI</h1>
+          <p class="text-sm text-white text-opacity-70">Advanced Analytics Dashboard</p>
         </div>
       </div>
 
-      <nav class="flex items-center gap-4">
-        <a href="/ui/invoice.html" class="text-sm text-gray-700 hover:text-blue-600">Fatura Detay</a>
-        <a href="/ui/products.html" class="text-sm text-gray-700 hover:text-blue-600">Ürünler</a>
-        <a href="/ui/products.html" class="text-sm text-gray-700 hover:text-blue-600">Bulk Import</a>
-        <a href="/docs" class="text-sm text-gray-700 hover:text-blue-600">API</a>
-        <button id="btnDemo" class="bg-blue-600 text-white px-3 py-1 rounded">Uyarılar & Demo</button>
+      <nav class="flex items-center gap-3">
+        <a href="/ui/invoice.html"><i class="fas fa-file-invoice mr-2"></i>Invoices</a>
+        <a href="/ui/products.html"><i class="fas fa-box mr-2"></i>Products</a>
+        <a href="/ui/alerts.html"><i class="fas fa-bell mr-2"></i>Alerts</a>
+        <a href="/docs"><i class="fas fa-code mr-2"></i>API</a>
+        <button id="btnDemo" class="btn-primary">
+          <i class="fas fa-exclamation-triangle mr-2"></i>View Alerts
+        </button>
       </nav>
     </header>
 
     <main>
-      <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-white p-4 rounded shadow">
-          <div class="text-sm text-gray-500">SKT Yaklaşan (7 gün)</div>
-          <div id="cardExpiry" class="mt-3 text-2xl font-semibold">—</div>
-          <div id="cardExpiryMeta" class="text-sm text-gray-400 mt-1">yükleniyor...</div>
-        </div>
-        <div class="bg-white p-4 rounded shadow">
-          <div class="text-sm text-gray-500">Stok Azalan</div>
-          <div id="cardLowStock" class="mt-3 text-2xl font-semibold">—</div>
-          <div id="cardLowStockMeta" class="text-sm text-gray-400 mt-1">yükleniyor...</div>
-        </div>
-        <div class="bg-white p-4 rounded shadow">
-          <div class="text-sm text-gray-500">Günlük Potansiyel Fire Tasarrufu</div>
-          <div id="cardSave" class="mt-3 text-2xl font-semibold">—</div>
-          <div id="cardSaveMeta" class="text-sm text-gray-400 mt-1">hesaplanıyor...</div>
-        </div>
-      </section>
-
-      <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="col-span-2 bg-white p-4 rounded shadow">
-          <div class="flex items-center justify-between">
-            <h2 class="text-lg font-semibold">Bugün yapılacaklar</h2>
-            <a href="/ui/invoice.html" class="text-sm text-blue-600">Tümünü gör</a>
+      <!-- Stats Cards -->
+      <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Expiry Alerts Card -->
+        <div class="stat-card">
+          <div class="icon-container" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <i class="fas fa-exclamation-triangle text-white"></i>
           </div>
-          <table class="w-full text-left mt-3">
-            <thead class="text-sm text-gray-500">
-              <tr><th class="py-2">Ürün / Invoice</th><th>Durum</th><th>Öneri</th><th></th></tr>
-            </thead>
-            <tbody id="todoRows" class="text-sm">
-              <tr class="border-t"><td class="py-2">Yükleniyor...</td><td class="py-2">-</td><td class="py-2">-</td><td class="py-2 text-right"></td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="bg-white p-4 rounded shadow">
-          <h3 class="text-lg font-semibold">Hızlı Arama</h3>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Expiry Alerts</div>
+          <div id="cardExpiry" class="counter">
+            <div class="spinner"></div>
+          </div>
+          <div id="cardExpiryMeta" class="text-white text-opacity-50 text-xs mt-2">Loading data...</div>
           <div class="mt-3">
-            <input id="q" class="w-full border rounded px-2 py-1" placeholder="Ürün barkodu / isim girin"/>
-            <div id="searchRes" class="text-sm text-gray-500 mt-2">0 sonuç</div>
+            <span class="badge badge-danger">
+              <i class="fas fa-arrow-up text-xs"></i>
+              <span>Critical</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Low Stock Card -->
+        <div class="stat-card">
+          <div class="icon-container" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);">
+            <i class="fas fa-box-open text-white"></i>
+          </div>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Low Stock Items</div>
+          <div id="cardLowStock" class="counter">
+            <div class="spinner"></div>
+          </div>
+          <div id="cardLowStockMeta" class="text-white text-opacity-50 text-xs mt-2">Loading data...</div>
+          <div class="mt-3">
+            <span class="badge badge-warning">
+              <i class="fas fa-arrow-down text-xs"></i>
+              <span>Attention</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Savings Card -->
+        <div class="stat-card">
+          <div class="icon-container" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
+            <i class="fas fa-piggy-bank text-white"></i>
+          </div>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Daily Savings</div>
+          <div id="cardSave" class="counter" style="font-size: 28px;">
+            <div class="spinner"></div>
+          </div>
+          <div id="cardSaveMeta" class="text-white text-opacity-50 text-xs mt-2">Estimated</div>
+          <div class="mt-3">
+            <span class="badge badge-success">
+              <i class="fas fa-check text-xs"></i>
+              <span>On Track</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Total Products Card -->
+        <div class="stat-card">
+          <div class="icon-container" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+            <i class="fas fa-database text-white"></i>
+          </div>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Total Products</div>
+          <div id="cardProducts" class="counter">
+            <div class="spinner"></div>
+          </div>
+          <div class="text-white text-opacity-50 text-xs mt-2">In inventory</div>
+          <div class="mt-3">
+            <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">
+              <i class="fas fa-cube text-xs"></i>
+              <span>Active</span>
+            </span>
           </div>
         </div>
       </section>
 
-      <footer class="mt-8 text-sm text-gray-400">
-        RetailAI © <span id="year"></span> — Demo & Pilot amaçlı. Sunumda müşteri onayı ile logo/isim değiştirilebilir.
+      <!-- Main Content Grid -->
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Recent Activity -->
+        <div class="lg:col-span-2 glass-card p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-white flex items-center gap-3">
+              <i class="fas fa-history"></i>
+              Recent Invoices
+            </h2>
+            <a href="/ui/invoice.html" class="text-white text-opacity-70 hover:text-opacity-100 text-sm font-medium">
+              View All <i class="fas fa-arrow-right ml-1"></i>
+            </a>
+          </div>
+          <div class="glass-table">
+            <table class="w-full text-left">
+              <thead class="text-white text-opacity-70 text-sm">
+                <tr>
+                  <th class="py-3 px-4">Invoice</th>
+                  <th class="py-3 px-4">Lines</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody id="todoRows" class="text-white text-opacity-90 text-sm">
+                <tr>
+                  <td colspan="4" class="p-8 text-center text-white text-opacity-50">
+                    <div class="spinner mx-auto mb-3"></div>
+                    <div>Loading invoices...</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Quick Actions & Search -->
+        <div class="space-y-6">
+          <!-- Quick Search -->
+          <div class="glass-card p-6">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <i class="fas fa-search"></i>
+              Quick Search
+            </h3>
+            <input id="q" class="search-input" placeholder="Search products, barcodes..."/>
+            <div id="searchRes" class="text-white text-opacity-50 text-sm mt-3">
+              <i class="fas fa-info-circle mr-2"></i>Enter search term
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="glass-card p-6">
+            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <i class="fas fa-bolt"></i>
+              Quick Actions
+            </h3>
+            <div class="space-y-3">
+              <a href="/ui/invoice.html" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
+                <i class="fas fa-upload mr-3 text-blue-400"></i>
+                Upload Invoice
+              </a>
+              <a href="/ui/products.html" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
+                <i class="fas fa-plus-circle mr-3 text-green-400"></i>
+                Add Product
+              </a>
+              <a href="/ui/alerts.html" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
+                <i class="fas fa-bell mr-3 text-yellow-400"></i>
+                View Alerts
+              </a>
+              <a href="/docs" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
+                <i class="fas fa-book mr-3 text-purple-400"></i>
+                API Documentation
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts Section -->
+      <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Stock Trend Chart -->
+        <div class="glass-card p-6">
+          <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <i class="fas fa-chart-line"></i>
+            Stock Trend (7 Days)
+          </h3>
+          <div class="chart-container">
+            <canvas id="stockChart" height="200"></canvas>
+          </div>
+        </div>
+
+        <!-- Category Distribution -->
+        <div class="glass-card p-6">
+          <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <i class="fas fa-pie-chart"></i>
+            Category Distribution
+          </h3>
+          <div class="chart-container">
+            <canvas id="categoryChart" height="200"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="text-center text-white text-opacity-50 text-sm py-6">
+        <p>
+          <i class="fas fa-shield-alt mr-2"></i>
+          Retail AI © <span id="year"></span> |
+          <span class="inline-flex items-center gap-2 ml-3">
+            <span class="w-2 h-2 bg-green-400 rounded-full pulse"></span>
+            System Operational
+          </span>
+        </p>
       </footer>
     </main>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   document.getElementById('year').textContent = new Date().getFullYear();
 
-  // Dashboard data loader: çağır /dashboard/summary ve DOM'u güncelle
+  // Number counter animation
+  function animateCounter(element, target, duration = 1000) {
+    const start = 0;
+    const increment = target / (duration / 16);
+    let current = start;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        element.textContent = Math.round(target);
+        clearInterval(timer);
+      } else {
+        element.textContent = Math.round(current);
+      }
+    }, 16);
+  }
+
+  // Dashboard data loader
   async function loadDashboard() {
     const expiryEl = document.getElementById('cardExpiry');
     const expiryMeta = document.getElementById('cardExpiryMeta');
@@ -97,114 +531,191 @@
     const lowMeta = document.getElementById('cardLowStockMeta');
     const saveEl = document.getElementById('cardSave');
     const saveMeta = document.getElementById('cardSaveMeta');
+    const productsEl = document.getElementById('cardProducts');
     const todoRows = document.getElementById('todoRows');
-
-    expiryEl.textContent = '…';
-    lowEl.textContent = '…';
-    saveEl.textContent = '…';
-    expiryMeta.textContent = 'yükleniyor...';
-    lowMeta.textContent = 'yükleniyor...';
-    saveMeta.textContent = 'hesaplanıyor...';
 
     try {
       const resp = await fetch('/dashboard/summary?store_id=1&days=7', {cache:'no-store'});
       if(!resp.ok) throw new Error('Status ' + resp.status);
       const j = await resp.json();
 
-      // expiry count
-      expiryEl.textContent = (j.expiry_count ?? 0);
-      expiryMeta.textContent = `son ${7} gün içinde ${j.expiry_count ?? 0} uyarı`;
+      // Animate expiry count
+      animateCounter(expiryEl, j.expiry_count ?? 0);
+      expiryMeta.textContent = `${j.expiry_count ?? 0} items expiring in 7 days`;
 
-      // low stock
-      lowEl.textContent = (j.low_stock_count ?? 0);
-      lowMeta.textContent = `${j.low_stock_count ?? 0} ürün stok eşiğinin altında`;
+      // Animate low stock
+      animateCounter(lowEl, j.low_stock_count ?? 0);
+      lowMeta.textContent = `${j.low_stock_count ?? 0} products below threshold`;
 
-      // rudimentary save calc (demo) — gerçek hesaplama backend'e taşınmalı
-      const saveEstimate = ((j.expiry_count ?? 0) * 120).toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
-      saveEl.textContent = saveEstimate;
-      saveMeta.textContent = 'Tahmini günlük tasarruf';
+      // Calculate and display savings
+      const saveAmount = (j.expiry_count ?? 0) * 120;
+      saveEl.textContent = '₺' + saveAmount.toLocaleString('tr-TR');
+      saveMeta.textContent = 'Estimated daily savings';
 
-      // recent invoices -> todoRows
+      // Products count (mock for now)
+      animateCounter(productsEl, 247);
+
+      // Recent invoices
       const rec = j.recent_invoices || [];
       todoRows.innerHTML = '';
       if(rec.length === 0){
-        todoRows.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Gösterilecek öğe yok</td></tr>';
+        todoRows.innerHTML = `
+          <tr>
+            <td colspan="4" class="p-8 text-center text-white text-opacity-50">
+              <i class="fas fa-inbox text-3xl mb-2"></i>
+              <div>No invoices to display</div>
+            </td>
+          </tr>
+        `;
       } else {
         rec.forEach(inv => {
           const tr = document.createElement('tr');
-          tr.className = 'border-t';
           tr.innerHTML = `
-            <td class="py-2">Invoice #${inv.id}</td>
-            <td class="py-2 text-gray-600">Satır: ${inv.line_count ?? '-'}</td>
-            <td class="py-2">İncele</td>
-            <td class="py-2 text-right"><a class="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded" href="/ui/invoice.html?invoice_id=${inv.id}">Aç</a></td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-2">
+                <i class="fas fa-file-invoice text-purple-400"></i>
+                <span class="font-medium">#${inv.id}</span>
+              </div>
+            </td>
+            <td class="py-3 px-4">${inv.line_count ?? 0} items</td>
+            <td class="py-3 px-4">
+              <span class="badge badge-success">
+                <i class="fas fa-check-circle"></i>
+                Processed
+              </span>
+            </td>
+            <td class="py-3 px-4 text-right">
+              <a href="/ui/invoice.html?invoice_id=${inv.id}"
+                 class="px-3 py-1 rounded-lg bg-white bg-opacity-10 hover:bg-opacity-20 transition text-xs font-medium">
+                <i class="fas fa-external-link-alt mr-1"></i>
+                Open
+              </a>
+            </td>
           `;
           todoRows.appendChild(tr);
         });
       }
 
     } catch (err) {
-      console.error('dashboard load error', err);
-      expiryEl.textContent = '!';
-      lowEl.textContent = '!';
-      saveEl.textContent = '!';
-      expiryMeta.textContent = 'veri yüklenemedi';
-      lowMeta.textContent = 'veri yüklenemedi';
-      saveMeta.textContent = 'veri yüklenemedi';
-      todoRows.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-600">Veri yüklenemedi — backend çalışıyor mu?</td></tr>';
+      console.error('Dashboard load error:', err);
+      expiryEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+      lowEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+      saveEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+      productsEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+      expiryMeta.textContent = 'Failed to load data';
+      lowMeta.textContent = 'Failed to load data';
+      saveMeta.textContent = 'Failed to load data';
+      todoRows.innerHTML = `
+        <tr>
+          <td colspan="4" class="p-8 text-center text-red-400">
+            <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+            <div>Failed to load data. Check if backend is running.</div>
+          </td>
+        </tr>
+      `;
     }
   }
 
-  // ilk yükleme ve periyodik yenileme (60s)
+  // Initialize dashboard
   window.addEventListener('load', () => {
     loadDashboard();
-    setInterval(loadDashboard, 60000);
+    setInterval(loadDashboard, 60000); // Refresh every minute
   });
 
-  // Demo/uyarı butonu: alerts sayfasına yönlendir
+  // Demo button
   document.getElementById('btnDemo').addEventListener('click', () => {
     window.location.href = '/ui/alerts.html';
   });
 
-  // Basit ürün arama (frontend, hızlı): backend endpoint yoksa sadece placeholder
+  // Search functionality
   document.getElementById('q').addEventListener('input', async (e) => {
     const q = e.target.value.trim();
     const resEl = document.getElementById('searchRes');
-    if(!q){ resEl.textContent = '0 sonuç'; return; }
-    // Eğer ürün arama endpoint'in varsa burayı değiştir: fetch(`/products/search?q=${encodeURIComponent(q)}`)
-    resEl.textContent = 'arama desteklenmiyor (implementasyon gerek)';
-  });
-</script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<canvas id="stockChart" height="100"></canvas>
+    if(!q){
+      resEl.innerHTML = '<i class="fas fa-info-circle mr-2"></i>Enter search term';
+      return;
+    }
+    resEl.innerHTML = `<div class="spinner inline-block mr-2"></div>Searching for "${q}"...`;
 
-<script>
-// Dashboard summary çek
-fetch("/dashboard/summary")
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById("expiryCount").textContent = data.expiry_count || 0;
-    document.getElementById("lowStockCount").textContent = data.low_stock_count || 0;
+    // TODO: Implement real search when endpoint is ready
+    setTimeout(() => {
+      resEl.innerHTML = `<i class="fas fa-search mr-2"></i>Search functionality coming soon`;
+    }, 500);
   });
 
-// Basit trend grafiği (örnek veri, sonra gerçek yaparız)
-new Chart(document.getElementById("stockChart"), {
-  type: "line",
-  data: {
-    labels: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
-    datasets: [{
-      label: "Stok Düşüş Trendi",
-      data: [65, 59, 80, 81, 56, 55, 40],
-      borderColor: "#ef4444",
-      backgroundColor: "rgba(239, 68, 68, 0.1)",
-      tension: 0.4
-    }]
-  },
-  options: { plugins: { legend: { display: false } } }
-});
+  // Initialize Charts
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      y: {
+        ticks: { color: 'rgba(255,255,255,0.7)' },
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      },
+      x: {
+        ticks: { color: 'rgba(255,255,255,0.7)' },
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      }
+    }
+  };
+
+  // Stock Trend Chart
+  new Chart(document.getElementById("stockChart"), {
+    type: "line",
+    data: {
+      labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      datasets: [{
+        label: "Stock Level",
+        data: [65, 59, 80, 81, 56, 55, 40],
+        borderColor: "#f093fb",
+        backgroundColor: "rgba(240, 147, 251, 0.1)",
+        tension: 0.4,
+        fill: true,
+        borderWidth: 3
+      }]
+    },
+    options: chartOptions
+  });
+
+  // Category Distribution Chart
+  new Chart(document.getElementById("categoryChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Dairy", "Bakery", "Beverages", "Snacks", "Other"],
+      datasets: [{
+        data: [30, 25, 20, 15, 10],
+        backgroundColor: [
+          "rgba(102, 126, 234, 0.8)",
+          "rgba(240, 147, 251, 0.8)",
+          "rgba(34, 197, 94, 0.8)",
+          "rgba(251, 191, 36, 0.8)",
+          "rgba(239, 68, 68, 0.8)"
+        ],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: 'rgba(255,255,255,0.9)',
+            padding: 15,
+            font: {
+              size: 12
+            }
+          }
+        }
+      }
+    }
+  });
 </script>
-
-
-
 </body>
 </html>
