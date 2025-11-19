@@ -149,7 +149,8 @@ class TestBulkProductUpload:
         assert response.status_code == 200
         data = response.json()
         assert data["created"] == 3
-        assert "Product 1" in data["message"]
+        assert "created" in data["message"].lower()
+        assert "3" in data["message"]
 
     def test_bulk_upload_with_image_urls(self, client, test_db):
         """Test bulk upload with image URLs."""

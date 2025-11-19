@@ -3,44 +3,72 @@ import pytest
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 from datetime import datetime, date, timedelta
 from fastapi.testclient import TestClient
 
-from app.db import Base
-from app.models import Product, Invoice, InvoiceLine, Batch, Sale, ExpiryAlert, ReorderPolicy, Forecast
-from app.main import app, get_db
+# Import Base first
+from app.db import Base, get_db
+
+# Then import ALL models to ensure they're registered with Base
+from app.models import (
+    Product, Invoice, InvoiceLine, Batch, Sale,
+    ExpiryAlert, ReorderPolicy, Forecast
+)
+
+# Finally import the app
+from app.main import app
+
+
+# Module-level test engine (shared across all tests in this session)
+TEST_DATABASE_URL = "sqlite:///:memory:"
 
 
 @pytest.fixture(scope="function")
 def test_db():
     """Create a fresh in-memory SQLite database for each test."""
-    # Create in-memory database
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    # Create engine with StaticPool to ensure all connections use the same in-memory DB
+    test_engine = create_engine(
+        TEST_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool  # Critical for in-memory SQLite!
+    )
 
-    # Create all tables
-    Base.metadata.create_all(bind=engine)
+    # Create all tables from Base metadata
+    Base.metadata.create_all(bind=test_engine)
 
+    # Create session
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
     db = TestingSessionLocal()
+
     try:
         yield db
     finally:
         db.close()
-        Base.metadata.drop_all(bind=engine)
+        # Drop all tables after test
+        Base.metadata.drop_all(bind=test_engine)
+        test_engine.dispose()
 
 
 @pytest.fixture(scope="function")
 def client(test_db):
     """Create a test client with dependency override."""
+    # Override the get_db dependency to use our test database
     def override_get_db():
         try:
             yield test_db
         finally:
             pass
 
+    # Clear any existing overrides and set ours
+    app.dependency_overrides.clear()
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
+
+    # Create test client
+    with TestClient(app, base_url="http://testserver") as test_client:
         yield test_client
+
+    # Clean up
     app.dependency_overrides.clear()
 
 

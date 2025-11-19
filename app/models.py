@@ -12,7 +12,6 @@ class Product(Base):
     category = Column(String, index=True)
     barcode_gtin = Column(String, index=True)
     shelf_life_days = Column(Integer, default=0)
-    image_url: str = None
     image_url = Column(String, nullable=True)
 
 class Invoice(Base):

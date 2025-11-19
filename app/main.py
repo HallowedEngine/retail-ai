@@ -8,10 +8,12 @@ from datetime import datetime, date, timedelta
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Path, Body, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from pydantic import BaseModel
 from typing import List
 from sqlalchemy import or_
@@ -25,6 +27,18 @@ from .logic import refresh_expiry_alerts, naive_hourly_forecast, reorder_suggest
 from .utils import save_upload, file_md5
 from .match import build_product_name_map, fuzzy_match_product
 from .gs1 import parse_gs1_from_text, parse_expiry_from_free_text
+from .logging_config import get_logger, setup_logging
+from .error_handlers import (
+    AppException,
+    app_exception_handler,
+    validation_exception_handler,
+    sqlalchemy_exception_handler,
+    generic_exception_handler
+)
+
+# Initialize logging
+setup_logging(os.getenv("LOG_LEVEL", "INFO"))
+logger = get_logger("main")
 
 # ——————————————————— YENİ: BASIC AUTH ———————————————————
 security = HTTPBasic()
@@ -46,18 +60,36 @@ Base.metadata.create_all(bind=engine)
 
 # ——————————————————— GLOBAL AUTH (bütün API ve UI otomatik korunur) ———————————————————
 app = FastAPI(
-    title="Retail Demo",
+    title="Retail AI - Invoice & Inventory Management",
+    description="Advanced retail management system with OCR, inventory tracking, and analytics",
+    version="2.0.0",
     dependencies=[Depends(verify_auth)]  # ← BU SATIR HER ŞEYİ ŞİFRELİYOR!
 )
 
-# Auth’suz kalmasını istediğin endpoint’ler (rahatlık için)
+# Register error handlers
+app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(SQLAlchemyError, sqlalchemy_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
+
+logger.info("Retail AI application starting up...")
+
+# Auth'suz kalmasını istediğin endpoint'ler (rahatlık için)
 @app.get("/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    """Health check endpoint."""
+    logger.debug("Health check requested")
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "2.0.0"
+    }
 
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
+
+logger.info("CORS middleware configured")
 
 # -----------------------------
 # P0-1) Upload + MD5 Duplicate
@@ -69,10 +101,23 @@ async def upload_invoice(
     supplier_id: int = 1,
     db: Session = Depends(get_db)
 ):
-    # 1) Dosyayı kaydet
-    img_path = save_upload(file, "invoice")
+    # 1) Validate file type
+    if not file.content_type or not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=400,
+            detail="Only image files are supported (JPEG, PNG, etc.)"
+        )
 
-    # 2) Duplicate kontrolü
+    # 2) Dosyayı kaydet
+    try:
+        img_path = save_upload(file, "invoice")
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to save uploaded file: {str(e)}"
+        )
+
+    # 3) Duplicate kontrolü
     h = file_md5(img_path)
     dup = db.query(Invoice).filter(Invoice.file_hash == h).first()
     if dup:
@@ -81,15 +126,24 @@ async def upload_invoice(
             detail={"message": "Duplicate invoice image", "existing_invoice_id": dup.id}
         )
 
-    # 3) OCR & parse
-    ocr = run_tesseract(img_path)
-    lines = parse_invoice_lines(ocr.get("text", ""))
-
-    # düşük güven/çıktı durumunda fallback
-    if len(lines) == 0 or ocr.get("conf", 0) < 0.6:
-        ocr2 = run_vision_fallback(img_path)
-        ocr = best_merge(ocr, ocr2)
+    # 4) OCR & parse with error handling
+    try:
+        ocr = run_tesseract(img_path)
         lines = parse_invoice_lines(ocr.get("text", ""))
+
+        # düşük güven/çıktı durumunda fallback
+        if len(lines) == 0 or ocr.get("conf", 0) < 0.6:
+            try:
+                ocr2 = run_vision_fallback(img_path)
+                ocr = best_merge(ocr, ocr2)
+                lines = parse_invoice_lines(ocr.get("text", ""))
+            except Exception:
+                # Fallback failed, continue with original OCR
+                pass
+    except Exception as e:
+        # If OCR fails completely, create invoice with empty OCR
+        ocr = {"text": "", "conf": 0, "error": str(e)}
+        lines = []
 
     # 4) ürün eşleştirme için name map (fuzzy yedeği)
     products = [{"id": p.id, "name": p.name} for p in db.query(Product).all()]
@@ -181,6 +235,7 @@ class ProductCreate(BaseModel):
     category: str | None = None
     barcode_gtin: str | None = None
     shelf_life_days: int | None = None
+    image_url: str | None = None
 
 @app.post("/invoice/line/update")
 def update_line(body: UpdateLineReq, db: Session = Depends(get_db)):
@@ -196,7 +251,15 @@ def update_line(body: UpdateLineReq, db: Session = Depends(get_db)):
     if body.name_raw is not None:
         L.name_raw = body.name_raw
     db.commit()
-    return {"ok": True}
+    db.refresh(L)
+    return {
+        "ok": True,
+        "id": L.id,
+        "product_id": L.product_id,
+        "qty": L.qty,
+        "unit_price": L.unit_price,
+        "name_raw": L.name_raw
+    }
 
 # -----------------------------
 # P0-3) CSV Export
@@ -246,7 +309,7 @@ def invoices_recent(limit: int = 20, db: Session = Depends(get_db)):
     out = []
     for inv in q:
         cnt = db.query(InvoiceLine).filter_by(invoice_id=inv.id).count()
-        out.append({"id": inv.id, "created_at": inv.created_at.isoisoformat() if inv.created_at else None, "line_count": cnt})
+        out.append({"id": inv.id, "created_at": inv.created_at.isoformat() if inv.created_at else None, "line_count": cnt})
     return out
 
 # -----------------------------
@@ -328,11 +391,13 @@ def seed_products(db: Session = Depends(get_db)):
     {"sku":"EKM200","name":"Ekmek 200g","category":"firin","barcode_gtin":"869000000003","shelf_life_days":2,
      "image_url":"https://i.hizliresim.com/123abc/ekmek.jpg"},
 ]
+    created = 0
     for d in demo:
         if not db.query(Product).filter_by(sku=d["sku"]).first():
             db.add(Product(**d))
+            created += 1
     db.commit()
-    return {"ok": True, "count": db.query(Product).count()}
+    return {"ok": True, "created": created, "count": db.query(Product).count()}
 
 @app.post("/batch/scan_from_image")
 async def batch_scan_from_image(
@@ -364,29 +429,78 @@ def create_product(body: ProductCreate, db: Session = Depends(get_db)):
     if body.barcode_gtin:
         exists = db.query(Product).filter(Product.barcode_gtin == body.barcode_gtin).first()
         if exists:
-            return {"ok": True, "id": exists.id, "note": "already exists by barcode"}
+            return {
+                "id": exists.id,
+                "sku": exists.sku,
+                "name": exists.name,
+                "category": exists.category,
+                "barcode_gtin": exists.barcode_gtin,
+                "shelf_life_days": exists.shelf_life_days,
+                "image_url": exists.image_url,
+                "note": "already exists by barcode"
+            }
     exists_sku = db.query(Product).filter(Product.sku == body.sku).first()
     if exists_sku:
-        return {"ok": True, "id": exists_sku.id, "note": "already exists by sku"}
+        return {
+            "id": exists_sku.id,
+            "sku": exists_sku.sku,
+            "name": exists_sku.name,
+            "category": exists_sku.category,
+            "barcode_gtin": exists_sku.barcode_gtin,
+            "shelf_life_days": exists_sku.shelf_life_days,
+            "image_url": exists_sku.image_url,
+            "note": "already exists by sku"
+        }
 
-    p = Product(**body.dict())
+    p = Product(**body.model_dump())  # Use model_dump instead of deprecated dict()
     db.add(p); db.commit(); db.refresh(p)
-    return {"ok": True, "id": p.id}
+    return {
+        "id": p.id,
+        "sku": p.sku,
+        "name": p.name,
+        "category": p.category,
+        "barcode_gtin": p.barcode_gtin,
+        "shelf_life_days": p.shelf_life_days,
+        "image_url": p.image_url
+    }
 
 @app.post("/products/bulk")
 def create_products_bulk(items: List[ProductCreate], db: Session = Depends(get_db)):
     created = 0
+    skipped = 0
+    seen_skus = set()  # Track SKUs in current batch
+    seen_barcodes = set()  # Track barcodes in current batch
+
     for body in items:
+        # Check for duplicates in database
         if body.barcode_gtin:
+            if body.barcode_gtin in seen_barcodes:
+                skipped += 1
+                continue
             exists = db.query(Product).filter(Product.barcode_gtin == body.barcode_gtin).first()
             if exists:
+                skipped += 1
                 continue
-        if db.query(Product).filter(Product.sku == body.sku).first():
+            seen_barcodes.add(body.barcode_gtin)
+
+        # Check for duplicate SKU in batch or database
+        if body.sku in seen_skus:
+            skipped += 1
             continue
-        p = Product(**body.dict())
-        db.add(p); created += 1
+        if db.query(Product).filter(Product.sku == body.sku).first():
+            skipped += 1
+            continue
+
+        seen_skus.add(body.sku)
+        p = Product(**body.model_dump())
+        db.add(p)
+        created += 1
+
     db.commit()
-    return {"ok": True, "created": created, "count": db.query(Product).count()}
+    message = f"Successfully created {created} product(s)"
+    if skipped > 0:
+        message += f", skipped {skipped} duplicate(s)"
+    return {"ok": True, "created": created, "skipped": skipped, "count": db.query(Product).count(), "message": message}
 
 @app.get("/products")
 def products_list(q: str | None = None, sku_or_id: str | None = None, limit: int = 30, db: Session = Depends(get_db)):
