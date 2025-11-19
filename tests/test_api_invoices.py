@@ -13,12 +13,12 @@ class TestInvoiceAPI:
         assert response.status_code == 200
 
         data = response.json()
-        assert "invoice" in data
+        assert "invoice_id" in data
         assert "lines" in data
-        assert data["invoice"]["id"] == sample_invoice.id
+        assert data["invoice_id"] == sample_invoice.id
         assert len(data["lines"]) == 2
 
-    def test_get_nonexistent_invoice_returns_404(self, client):
+    def test_get_nonexistent_invoice_returns_404(self, client, test_db):
         """Test that getting nonexistent invoice returns 404."""
         response = client.get("/invoice/99999", auth=("admin", "retailai2025"))
         assert response.status_code == 404
@@ -59,7 +59,7 @@ class TestInvoiceAPI:
         data = response.json()
         assert data["product_id"] == sample_products[1].id
 
-    def test_update_nonexistent_line_returns_404(self, client):
+    def test_update_nonexistent_line_returns_404(self, client, test_db):
         """Test updating nonexistent line returns 404."""
         response = client.post(
             "/invoice/line/update",
@@ -110,7 +110,7 @@ class TestInvoiceUpload:
         img_bytes.seek(0)
         return img_bytes.getvalue()
 
-    def test_upload_invoice_requires_auth(self, client):
+    def test_upload_invoice_requires_auth(self, client, test_db):
         """Test that upload requires authentication."""
         img_data = self.create_test_image()
         files = {'file': ('test_invoice.jpg', io.BytesIO(img_data), 'image/jpeg')}
@@ -134,7 +134,7 @@ class TestInvoiceUpload:
         data = response.json()
         assert "invoice_id" in data
 
-    def test_upload_unsupported_file_type(self, client):
+    def test_upload_unsupported_file_type(self, client, test_db):
         """Test that unsupported file types are rejected."""
         files = {'file': ('test.txt', io.BytesIO(b'not an image'), 'text/plain')}
 
