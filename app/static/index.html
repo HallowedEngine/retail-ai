@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Retail AI — Advanced Dashboard</title>
+<title>Retail AI — İleri Seviye Dashboard</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -295,17 +295,17 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold text-white">Retail AI</h1>
-          <p class="text-sm text-white text-opacity-70">Advanced Analytics Dashboard</p>
+          <p class="text-sm text-white text-opacity-70">Akıllı Analiz Paneli</p>
         </div>
       </div>
 
       <nav class="flex items-center gap-3">
-        <a href="/ui/invoice.html"><i class="fas fa-file-invoice mr-2"></i>Invoices</a>
-        <a href="/ui/products.html"><i class="fas fa-box mr-2"></i>Products</a>
-        <a href="/ui/alerts.html"><i class="fas fa-bell mr-2"></i>Alerts</a>
+        <a href="/ui/invoice.html"><i class="fas fa-file-invoice mr-2"></i>Faturalar</a>
+        <a href="/ui/products.html"><i class="fas fa-box mr-2"></i>Ürünler</a>
+        <a href="/ui/alerts.html"><i class="fas fa-bell mr-2"></i>Uyarılar</a>
         <a href="/docs"><i class="fas fa-code mr-2"></i>API</a>
         <button id="btnDemo" class="btn-primary">
-          <i class="fas fa-exclamation-triangle mr-2"></i>View Alerts
+          <i class="fas fa-exclamation-triangle mr-2"></i>Uyarıları Görüntüle
         </button>
       </nav>
     </header>
@@ -318,15 +318,15 @@
           <div class="icon-container" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
             <i class="fas fa-exclamation-triangle text-white"></i>
           </div>
-          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Expiry Alerts</div>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">SKT Uyarıları</div>
           <div id="cardExpiry" class="counter">
             <div class="spinner"></div>
           </div>
-          <div id="cardExpiryMeta" class="text-white text-opacity-50 text-xs mt-2">Loading data...</div>
+          <div id="cardExpiryMeta" class="text-white text-opacity-50 text-xs mt-2">Veriler yükleniyor...</div>
           <div class="mt-3">
             <span class="badge badge-danger">
               <i class="fas fa-arrow-up text-xs"></i>
-              <span>Critical</span>
+              <span>Kritik</span>
             </span>
           </div>
         </div>
@@ -336,15 +336,15 @@
           <div class="icon-container" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);">
             <i class="fas fa-box-open text-white"></i>
           </div>
-          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Low Stock Items</div>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Düşük Stok</div>
           <div id="cardLowStock" class="counter">
             <div class="spinner"></div>
           </div>
-          <div id="cardLowStockMeta" class="text-white text-opacity-50 text-xs mt-2">Loading data...</div>
+          <div id="cardLowStockMeta" class="text-white text-opacity-50 text-xs mt-2">Veriler yükleniyor...</div>
           <div class="mt-3">
             <span class="badge badge-warning">
               <i class="fas fa-arrow-down text-xs"></i>
-              <span>Attention</span>
+              <span>Dikkat</span>
             </span>
           </div>
         </div>
@@ -354,15 +354,15 @@
           <div class="icon-container" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
             <i class="fas fa-piggy-bank text-white"></i>
           </div>
-          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Daily Savings</div>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Günlük Tasarruf</div>
           <div id="cardSave" class="counter" style="font-size: 28px;">
             <div class="spinner"></div>
           </div>
-          <div id="cardSaveMeta" class="text-white text-opacity-50 text-xs mt-2">Estimated</div>
+          <div id="cardSaveMeta" class="text-white text-opacity-50 text-xs mt-2">Tahmini</div>
           <div class="mt-3">
             <span class="badge badge-success">
               <i class="fas fa-check text-xs"></i>
-              <span>On Track</span>
+              <span>Yolunda</span>
             </span>
           </div>
         </div>
@@ -372,15 +372,15 @@
           <div class="icon-container" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
             <i class="fas fa-database text-white"></i>
           </div>
-          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Total Products</div>
+          <div class="text-white text-opacity-70 text-sm font-medium mb-2">Toplam Ürün</div>
           <div id="cardProducts" class="counter">
             <div class="spinner"></div>
           </div>
-          <div class="text-white text-opacity-50 text-xs mt-2">In inventory</div>
+          <div class="text-white text-opacity-50 text-xs mt-2">Envanterde</div>
           <div class="mt-3">
             <span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">
               <i class="fas fa-cube text-xs"></i>
-              <span>Active</span>
+              <span>Aktif</span>
             </span>
           </div>
         </div>
@@ -393,27 +393,27 @@
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-xl font-bold text-white flex items-center gap-3">
               <i class="fas fa-history"></i>
-              Recent Invoices
+              Son Faturalar
             </h2>
             <a href="/ui/invoice.html" class="text-white text-opacity-70 hover:text-opacity-100 text-sm font-medium">
-              View All <i class="fas fa-arrow-right ml-1"></i>
+              Tümünü Gör <i class="fas fa-arrow-right ml-1"></i>
             </a>
           </div>
           <div class="glass-table">
             <table class="w-full text-left">
               <thead class="text-white text-opacity-70 text-sm">
                 <tr>
-                  <th class="py-3 px-4">Invoice</th>
-                  <th class="py-3 px-4">Lines</th>
-                  <th class="py-3 px-4">Status</th>
-                  <th class="py-3 px-4 text-right">Action</th>
+                  <th class="py-3 px-4">Fatura</th>
+                  <th class="py-3 px-4">Satırlar</th>
+                  <th class="py-3 px-4">Durum</th>
+                  <th class="py-3 px-4 text-right">İşlem</th>
                 </tr>
               </thead>
               <tbody id="todoRows" class="text-white text-opacity-90 text-sm">
                 <tr>
                   <td colspan="4" class="p-8 text-center text-white text-opacity-50">
                     <div class="spinner mx-auto mb-3"></div>
-                    <div>Loading invoices...</div>
+                    <div>Faturalar yükleniyor...</div>
                   </td>
                 </tr>
               </tbody>
@@ -427,11 +427,11 @@
           <div class="glass-card p-6">
             <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <i class="fas fa-search"></i>
-              Quick Search
+              Hızlı Arama
             </h3>
-            <input id="q" class="search-input" placeholder="Search products, barcodes..."/>
+            <input id="q" class="search-input" placeholder="Ürün ara, barkod..."/>
             <div id="searchRes" class="text-white text-opacity-50 text-sm mt-3">
-              <i class="fas fa-info-circle mr-2"></i>Enter search term
+              <i class="fas fa-info-circle mr-2"></i>Arama terimi girin
             </div>
           </div>
 
@@ -439,24 +439,24 @@
           <div class="glass-card p-6">
             <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <i class="fas fa-bolt"></i>
-              Quick Actions
+              Hızlı İşlemler
             </h3>
             <div class="space-y-3">
               <a href="/ui/invoice.html" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
                 <i class="fas fa-upload mr-3 text-blue-400"></i>
-                Upload Invoice
+                Fatura Yükle
               </a>
               <a href="/ui/products.html" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
                 <i class="fas fa-plus-circle mr-3 text-green-400"></i>
-                Add Product
+                Ürün Ekle
               </a>
               <a href="/ui/alerts.html" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
                 <i class="fas fa-bell mr-3 text-yellow-400"></i>
-                View Alerts
+                Uyarıları Gör
               </a>
               <a href="/docs" class="block p-3 rounded-xl bg-white bg-opacity-10 hover:bg-opacity-20 transition text-white">
                 <i class="fas fa-book mr-3 text-purple-400"></i>
-                API Documentation
+                API Dokümantasyonu
               </a>
             </div>
           </div>
@@ -469,7 +469,7 @@
         <div class="glass-card p-6">
           <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <i class="fas fa-chart-line"></i>
-            Stock Trend (7 Days)
+            Stok Trendi (7 Gün)
           </h3>
           <div class="chart-container">
             <canvas id="stockChart" height="200"></canvas>
@@ -480,7 +480,7 @@
         <div class="glass-card p-6">
           <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <i class="fas fa-pie-chart"></i>
-            Category Distribution
+            Kategori Dağılımı
           </h3>
           <div class="chart-container">
             <canvas id="categoryChart" height="200"></canvas>
@@ -495,7 +495,7 @@
           Retail AI © <span id="year"></span> |
           <span class="inline-flex items-center gap-2 ml-3">
             <span class="w-2 h-2 bg-green-400 rounded-full pulse"></span>
-            System Operational
+            Sistem Çalışıyor
           </span>
         </p>
       </footer>
@@ -536,21 +536,21 @@
 
     try {
       const resp = await fetch('/dashboard/summary?store_id=1&days=7', {cache:'no-store'});
-      if(!resp.ok) throw new Error('Status ' + resp.status);
+      if(!resp.ok) throw new Error('Durum kodu: ' + resp.status);
       const j = await resp.json();
 
       // Animate expiry count
       animateCounter(expiryEl, j.expiry_count ?? 0);
-      expiryMeta.textContent = `${j.expiry_count ?? 0} items expiring in 7 days`;
+      expiryMeta.textContent = `7 gün içinde ${j.expiry_count ?? 0} ürün sona eriyor`;
 
       // Animate low stock
       animateCounter(lowEl, j.low_stock_count ?? 0);
-      lowMeta.textContent = `${j.low_stock_count ?? 0} products below threshold`;
+      lowMeta.textContent = `${j.low_stock_count ?? 0} ürün eşiğin altında`;
 
       // Calculate and display savings
       const saveAmount = (j.expiry_count ?? 0) * 120;
       saveEl.textContent = '₺' + saveAmount.toLocaleString('tr-TR');
-      saveMeta.textContent = 'Estimated daily savings';
+      saveMeta.textContent = 'Tahmini günlük tasarruf';
 
       // Products count (mock for now)
       animateCounter(productsEl, 247);
@@ -563,7 +563,7 @@
           <tr>
             <td colspan="4" class="p-8 text-center text-white text-opacity-50">
               <i class="fas fa-inbox text-3xl mb-2"></i>
-              <div>No invoices to display</div>
+              <div>Gösterilecek fatura yok</div>
             </td>
           </tr>
         `;
@@ -577,18 +577,18 @@
                 <span class="font-medium">#${inv.id}</span>
               </div>
             </td>
-            <td class="py-3 px-4">${inv.line_count ?? 0} items</td>
+            <td class="py-3 px-4">${inv.line_count ?? 0} satır</td>
             <td class="py-3 px-4">
               <span class="badge badge-success">
                 <i class="fas fa-check-circle"></i>
-                Processed
+                İşlendi
               </span>
             </td>
             <td class="py-3 px-4 text-right">
               <a href="/ui/invoice.html?invoice_id=${inv.id}"
                  class="px-3 py-1 rounded-lg bg-white bg-opacity-10 hover:bg-opacity-20 transition text-xs font-medium">
                 <i class="fas fa-external-link-alt mr-1"></i>
-                Open
+                Aç
               </a>
             </td>
           `;
@@ -597,19 +597,19 @@
       }
 
     } catch (err) {
-      console.error('Dashboard load error:', err);
+      console.error('Dashboard yükleme hatası:', err);
       expiryEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
       lowEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
       saveEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
       productsEl.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
-      expiryMeta.textContent = 'Failed to load data';
-      lowMeta.textContent = 'Failed to load data';
-      saveMeta.textContent = 'Failed to load data';
+      expiryMeta.textContent = 'Veri yüklenemedi';
+      lowMeta.textContent = 'Veri yüklenemedi';
+      saveMeta.textContent = 'Veri yüklenemedi';
       todoRows.innerHTML = `
         <tr>
           <td colspan="4" class="p-8 text-center text-red-400">
             <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
-            <div>Failed to load data. Check if backend is running.</div>
+            <div>Veriler yüklenemedi. Backend çalışıyor mu kontrol edin.</div>
           </td>
         </tr>
       `;
@@ -619,7 +619,7 @@
   // Initialize dashboard
   window.addEventListener('load', () => {
     loadDashboard();
-    setInterval(loadDashboard, 60000); // Refresh every minute
+    setInterval(loadDashboard, 60000); // Her dakika yenile
   });
 
   // Demo button
@@ -632,14 +632,14 @@
     const q = e.target.value.trim();
     const resEl = document.getElementById('searchRes');
     if(!q){
-      resEl.innerHTML = '<i class="fas fa-info-circle mr-2"></i>Enter search term';
+      resEl.innerHTML = '<i class="fas fa-info-circle mr-2"></i>Arama terimi girin';
       return;
     }
-    resEl.innerHTML = `<div class="spinner inline-block mr-2"></div>Searching for "${q}"...`;
+    resEl.innerHTML = `<div class="spinner inline-block mr-2"></div>"${q}" aranıyor...`;
 
     // TODO: Implement real search when endpoint is ready
     setTimeout(() => {
-      resEl.innerHTML = `<i class="fas fa-search mr-2"></i>Search functionality coming soon`;
+      resEl.innerHTML = `<i class="fas fa-search mr-2"></i>Arama özelliği yakında gelecek`;
     }, 500);
   });
 
@@ -668,9 +668,9 @@
   new Chart(document.getElementById("stockChart"), {
     type: "line",
     data: {
-      labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      labels: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
       datasets: [{
-        label: "Stock Level",
+        label: "Stok Seviyesi",
         data: [65, 59, 80, 81, 56, 55, 40],
         borderColor: "#f093fb",
         backgroundColor: "rgba(240, 147, 251, 0.1)",
@@ -686,7 +686,7 @@
   new Chart(document.getElementById("categoryChart"), {
     type: "doughnut",
     data: {
-      labels: ["Dairy", "Bakery", "Beverages", "Snacks", "Other"],
+      labels: ["Süt Ürünleri", "Fırın", "İçecekler", "Atıştırmalık", "Diğer"],
       datasets: [{
         data: [30, 25, 20, 15, 10],
         backgroundColor: [
