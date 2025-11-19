@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <title>Ürün Toplu İçe Aktarma</title>
+  <title>Ürün Toplu İçe Aktarma — RetailAI</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     body{font-family:system-ui,Arial,sans-serif;padding:20px;max-width:1100px;margin:auto;background:#f9fafb}
@@ -27,17 +27,17 @@
   </style>
 </head>
 <body>
-  <h1>Ürün Toplu İçe Aktarma</h1>
+  <h1>📦 Ürün Toplu İçe Aktarma</h1>
   <p class="small">
-    Desteklenen sütunlar: <code>sku</code>, <code>name</code>, <code>category</code>, <code>barcode_gtin</code>, <code>shelf_life_days</code>, 
+    Desteklenen sütunlar: <code>sku</code>, <code>name</code>, <code>category</code>, <code>barcode_gtin</code>, <code>shelf_life_days</code>,
     <strong>yeni:</strong> <code>image_url</code> (isteğe bağlı)
   </p>
 
   <div class="card">
     <input type="file" id="csvFile" accept=".csv,text/csv" />
     <div>
-      <button id="btnPreview">Önizle</button>
-      <button id="btnUpload" disabled>Toplu Yükle</button>
+      <button id="btnPreview">👁️ Önizle</button>
+      <button id="btnUpload" disabled>⬆️ Toplu Yükle</button>
     </div>
     <div id="msg"></div>
   </div>
@@ -61,7 +61,7 @@ function parseCSV(text){
 }
 
 // Placeholder SVG
-const PLACEHOLDER = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjZTNlN2ZmIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5ZmE1ZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=";
+const PLACEHOLDER = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjZTNlN2ZmIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5ZmE1ZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5Gr3JzZWwgWW9rPC90ZXh0Pjwvc3ZnPg==";
 
 document.getElementById('btnPreview').addEventListener('click', async () => {
   const f = document.getElementById('csvFile').files[0];
@@ -69,16 +69,16 @@ document.getElementById('btnPreview').addEventListener('click', async () => {
   const prev = document.getElementById('preview');
   prev.innerHTML = ""; msg.innerHTML = "";
 
-  if (!f) { msg.innerHTML = '<span class="err">CSV seçmedin kanka</span>'; return; }
+  if (!f) { msg.innerHTML = '<span class="err">❌ Lütfen bir CSV dosyası seçin</span>'; return; }
 
   const txt = await f.text();
   let parsed;
   try { parsed = parseCSV(txt); } catch(e) {
-    msg.innerHTML = '<span class="err">CSV bozuk, kontrol et</span>'; return;
+    msg.innerHTML = '<span class="err">❌ CSV dosyası bozuk, lütfen kontrol edin</span>'; return;
   }
 
   if (parsed.data.length === 0) {
-    msg.innerHTML = '<span class="err">CSV’de satır yok</span>'; return;
+    msg.innerHTML = '<span class="err">❌ CSV dosyasında satır yok</span>'; return;
   }
 
   let html = `<table><thead><tr><th>Görsel</th>`;
@@ -88,7 +88,7 @@ document.getElementById('btnPreview').addEventListener('click', async () => {
   parsed.data.slice(0, 200).forEach(r => {
     const img = (r.image_url || r.Image_url || r.image || "").trim();
     html += `<tr>
-      <td><img src="${img || PLACEHOLDER}" class="preview-img" onerror="this.src='${PLACEHOLDER}'" alt="Görsel"></td>`;
+      <td><img src="${img || PLACEHOLDER}" class="preview-img" onerror="this.src='${PLACEHOLDER}'" alt="Ürün Görseli"></td>`;
     parsed.headers.forEach(h => {
       html += `<td>${(r[h] || "").replace(/</g, "&lt;")}</td>`;
     });
@@ -104,7 +104,7 @@ document.getElementById('btnPreview').addEventListener('click', async () => {
 
 document.getElementById('btnUpload').addEventListener('click', async () => {
   const msg = document.getElementById('msg');
-  msg.innerHTML = "Yükleniyor kanka, bekle...";
+  msg.innerHTML = "⏳ Yükleniyor, lütfen bekleyin...";
 
   const parsed = window.__csv_data;
   if (!parsed) return;
@@ -119,7 +119,7 @@ document.getElementById('btnUpload').addEventListener('click', async () => {
   })).filter(p => p.sku && p.name);
 
   if (items.length === 0) {
-    msg.innerHTML = '<span class="err">Hiç geçerli ürün yok (sku + name zorunlu)</span>';
+    msg.innerHTML = '<span class="err">❌ Geçerli ürün bulunamadı (sku ve name zorunludur)</span>';
     return;
   }
 
@@ -133,13 +133,13 @@ document.getElementById('btnUpload').addEventListener('click', async () => {
     const result = await resp.json();
 
     if (resp.ok) {
-      msg.innerHTML = `<span class="ok">ASLANIM! ${result.created} yeni ürün eklendi. Toplam ürün: ${result.count}</span>`;
+      msg.innerHTML = `<span class="ok">✅ HARIKA! ${result.created} yeni ürün başarıyla eklendi. Toplam ürün sayısı: ${result.count}</span>`;
       document.getElementById('btnUpload').disabled = true;
     } else {
-      msg.innerHTML = `<span class="err">Hata oldu: ${JSON.stringify(result)}</span>`;
+      msg.innerHTML = `<span class="err">❌ Hata oluştu: ${JSON.stringify(result)}</span>`;
     }
   } catch (e) {
-    msg.innerHTML = `<span class="err">Bağlantı koptu: ${e.message}</span>`;
+    msg.innerHTML = `<span class="err">❌ Bağlantı hatası: ${e.message}</span>`;
   }
 });
 </script>

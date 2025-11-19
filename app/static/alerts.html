@@ -2,19 +2,19 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<title>Alerts — RetailAI</title>
+<title>Uyarılar — RetailAI</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
   <div class="max-w-6xl mx-auto p-6">
     <div class="flex items-center justify-between mb-4">
       <h1 class="text-2xl font-bold">SKT Yaklaşan Ürünler</h1>
-      <a class="text-sm text-blue-600" href="/ui">← Dashboard</a>
+      <a class="text-sm text-blue-600" href="/ui">← Dashboard'a Dön</a>
     </div>
 
     <div id="controls" class="mb-4">
-      <label class="text-sm mr-2">Store ID: <input id="storeId" type="number" value="1" class="border px-2 py-1 rounded" /></label>
-      <label class="text-sm mr-2">Gün (lookahead): <input id="days" type="number" value="30" class="border px-2 py-1 rounded w-24" /></label>
+      <label class="text-sm mr-2">Mağaza ID: <input id="storeId" type="number" value="1" class="border px-2 py-1 rounded" /></label>
+      <label class="text-sm mr-2">Gün (ileriye bakış): <input id="days" type="number" value="30" class="border px-2 py-1 rounded w-24" /></label>
       <button id="btnRefresh" class="bg-blue-600 text-white px-3 py-1 rounded">Yenile</button>
     </div>
 
@@ -25,10 +25,10 @@
         <tr class="text-left">
           <th class="p-2">Ürün</th>
           <th class="p-2">SKT</th>
-          <th class="p-2">Kalan gün</th>
-          <th class="p-2">Severity</th>
-          <th class="p-2">Status</th>
-          <th class="p-2">Aksiyon</th>
+          <th class="p-2">Kalan Gün</th>
+          <th class="p-2">Önem</th>
+          <th class="p-2">Durum</th>
+          <th class="p-2">İşlem</th>
         </tr>
       </thead>
       <tbody id="alertsTbody" class="text-sm"></tbody>
@@ -62,10 +62,10 @@ async function fetchAlerts() {
       <td class="p-2">${a.expiry_date}</td>
       <td class="p-2">${a.days_left}</td>
       <td class="p-2">${a.severity}</td>
-      <td class="p-2">${a.status || 'new'}${a.snooze_until? ' (ertele->'+a.snooze_until+')':''}</td>
+      <td class="p-2">${a.status || 'yeni'}${a.snooze_until? ' (ertele->'+a.snooze_until+')':''}</td>
       <td class="p-2">
-        <button data-id="${a.id}" class="ack-btn bg-green-100 text-green-700 px-2 py-1 rounded mr-2">Acknowledge</button>
-        <button data-id="${a.id}" class="snooze-btn bg-yellow-100 text-yellow-700 px-2 py-1 rounded">Snooze 1d</button>
+        <button data-id="${a.id}" class="ack-btn bg-green-100 text-green-700 px-2 py-1 rounded mr-2">Onayla</button>
+        <button data-id="${a.id}" class="snooze-btn bg-yellow-100 text-yellow-700 px-2 py-1 rounded">1 Gün Ertele</button>
       </td>`;
     tbody.appendChild(tr);
   }

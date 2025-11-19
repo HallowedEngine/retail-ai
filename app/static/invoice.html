@@ -31,7 +31,7 @@
           <p class="text-indigo-100 mt-2" id="report-info">Fatura ID: <span id="current-invoice-id">—</span></p>
         </div>
         <button onclick="exportToPDF()" class="bg-white text-indigo-600 font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-gray-100 transition transform hover:scale-105">
-          PDF İNDİR
+          📥 PDF İNDİR
         </button>
       </div>
     </div>
@@ -49,7 +49,7 @@
             Yükle
           </button>
           <a id="csvLink" href="#" target="_blank" class="ml-auto text-indigo-600 hover:underline font-medium">
-            CSV İndir
+            📊 CSV İndir
           </a>
         </div>
       </div>
@@ -81,11 +81,11 @@
   </div>
 
 <script>
-// PDF Export (ŞAHANE)
+// PDF Export
 async function exportToPDF() {
   const btn = document.querySelector('button[onclick="exportToPDF()"]');
   btn.disabled = true;
-  btn.innerHTML = 'Hazırlanıyor...';
+  btn.innerHTML = '⏳ Hazırlanıyor...';
 
   const { jsPDF } = window.jspdf;
   const element = document.getElementById('pdf-content');
@@ -102,25 +102,25 @@ async function exportToPDF() {
     alert('PDF oluşturulurken hata: ' + e.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = 'PDF İNDİR';
+    btn.innerHTML = '📥 PDF İNDİR';
   }
 }
 
 async function loadInvoice(id) {
   document.getElementById('current-invoice-id').textContent = id;
-  document.getElementById('msg').innerHTML = '<span class="text-indigo-600">Yükleniyor...</span>';
+  document.getElementById('msg').innerHTML = '<span class="text-indigo-600">⏳ Yükleniyor...</span>';
 
   const r = await fetch(`/invoice/${id}`);
   const text = await r.text();
   let data = null;
   try { data = JSON.parse(text); } catch (e) {
-    document.getElementById('msg').innerHTML = '<span class="text-red-600">JSON hatası</span>';
+    document.getElementById('msg').innerHTML = '<span class="text-red-600">❌ JSON hatası</span>';
     return;
   }
-  if (!r.ok) { document.getElementById('msg').innerHTML = '<span class="text-red-600">Sunucu hatası</span>'; return; }
+  if (!r.ok) { document.getElementById('msg').innerHTML = '<span class="text-red-600">❌ Sunucu hatası</span>'; return; }
 
   document.getElementById("csvLink").href = `/invoice/${id}/export.csv`;
-  document.getElementById('msg').innerHTML = `<span class="text-green-600">Fatura yüklendi — ${data.lines.length} satır</span>`;
+  document.getElementById('msg').innerHTML = `<span class="text-green-600">✅ Fatura yüklendi — ${data.lines.length} satır</span>`;
 
   const tbody = document.getElementById("linesBody");
   tbody.innerHTML = "";
@@ -129,22 +129,22 @@ async function loadInvoice(id) {
   data.lines.forEach(L => {
     const tr = document.createElement("tr");
     tr.className = "hover:bg-gray-50 transition";
-    const matchedName = L.product_id ? `<strong class="text-green-600">${L.matched_name || 'Eşleşti'}</strong>` : '<span class="text-gray-400">Eşleşme yok</span>';
-    
+    const matchedName = L.product_id ? `<strong class="text-green-600">✓ ${L.matched_name || 'Eşleşti'}</strong>` : '<span class="text-gray-400">⚠ Eşleşme yok</span>';
+
     tr.innerHTML = `
       <td class="p-4">${L.id}</td>
       <td class="p-4">${L.name_raw || ''}</td>
       <td class="p-4">
-        <input value="${L.product_id || ''}" 
-               data-line-id="${L.id}" 
-               class="product-choice border rounded-lg px-3 py-2 w-24 focus:ring focus:ring-indigo-300" 
+        <input value="${L.product_id || ''}"
+               data-line-id="${L.id}"
+               class="product-choice border rounded-lg px-3 py-2 w-24 focus:ring focus:ring-indigo-300"
                placeholder="ID ara..." />
         <div class="text-sm mt-1">${matchedName}</div>
       </td>
       <td class="p-4"><input value="${L.qty}" data-key="qty" class="border rounded px-3 py-2 w-20 text-right" /></td>
       <td class="p-4"><input value="${L.unit_price}" data-key="unit_price" class="border rounded px-3 py-2 w-32 text-right" /></td>
       <td class="p-4 font-medium text-right">${(L.qty * L.unit_price).toFixed(2)} ₺</td>
-      <td class="p-4"><button data-id="${L.id}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">Kaydet</button></td>
+      <td class="p-4"><button data-id="${L.id}" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">💾 Kaydet</button></td>
     `;
     tbody.appendChild(tr);
   });
@@ -160,14 +160,14 @@ function attachSaveButtons() {
       const lineId = btn.dataset.id;
       const tr = btn.closest('tr');
       const body = { line_id: Number(lineId) };
-      
+
       tr.querySelectorAll('input[data-key]').forEach(inp => {
         const k = inp.dataset.key;
         let v = inp.value;
         if (k === 'qty' || k === 'unit_price') v = v === '' ? null : Number(v);
         body[k] = v;
       });
-      
+
       const productInput = tr.querySelector('.product-choice');
       if (productInput.value) body.product_id = Number(productInput.value);
 
@@ -176,18 +176,18 @@ function attachSaveButtons() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
       });
-      
-      btn.innerHTML = rr.ok ? 'Kaydedildi' : 'Hata';
+
+      btn.innerHTML = rr.ok ? '✅ Kaydedildi' : '❌ Hata';
       btn.className = rr.ok ? 'bg-green-600 text-white px-5 py-2 rounded-lg' : 'bg-red-600 text-white px-5 py-2 rounded-lg';
-      setTimeout(() => { btn.innerHTML = 'Kaydet'; btn.className = 'bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg'; }, 2000);
+      setTimeout(() => { btn.innerHTML = '💾 Kaydet'; btn.className = 'bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg'; }, 2000);
     };
   });
 }
 
-// Typeahead kodu (senin orijinal + ufak güzelleştirme)
-function createDropdown(input) { /* aynı */ }
-function placeDropdown(input, dd) { /* aynı */ }
-function attachTypeaheadToInput(input) { /* senin kodun, sadece ufak düzeltme */ }
+// Typeahead placeholder fonksiyonları
+function createDropdown(input) { /* typeahead dropdown oluştur */ }
+function placeDropdown(input, dd) { /* dropdown yerleştir */ }
+function attachTypeaheadToInput(input) { /* typeahead attach */ }
 function initInvoiceTypeaheads() {
   document.querySelectorAll('.product-choice[data-line-id]').forEach(inp => {
     inp.removeEventListener('input', inp._typeaheadHandler);
@@ -197,13 +197,13 @@ function initInvoiceTypeaheads() {
 
 document.getElementById("btnLoad").addEventListener("click", () => {
   const id = document.getElementById("invId").value.trim();
-  if (!id) return alert("Firuta ID gir kanka");
+  if (!id) return alert("❗ Lütfen fatura ID'si girin");
   loadInvoice(id);
 });
 
-// Sayfa açılışta ?id= varsa otomatik yükle
+// Sayfa açılışta ?invoice_id= varsa otomatik yükle
 const urlParams = new URLSearchParams(window.location.search);
-const autoId = urlParams.get('id');
+const autoId = urlParams.get('invoice_id') || urlParams.get('id');
 if (autoId) {
   document.getElementById('invId').value = autoId;
   loadInvoice(autoId);
