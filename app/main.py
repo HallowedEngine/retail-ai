@@ -4,6 +4,7 @@ import io
 import csv
 import json
 import secrets
+import logging
 from datetime import datetime, date, timedelta
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Path, Body, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,6 +16,7 @@ from sqlalchemy import func
 from pydantic import BaseModel
 from typing import List
 from sqlalchemy import or_
+from slowapi.errors import RateLimitExceeded
 
 from .db import Base, engine, get_db
 from .models import *
@@ -25,6 +27,22 @@ from .logic import refresh_expiry_alerts, naive_hourly_forecast, reorder_suggest
 from .utils import save_upload, file_md5
 from .match import build_product_name_map, fuzzy_match_product
 from .gs1 import parse_gs1_from_text, parse_expiry_from_free_text
+from .middleware import (
+    RequestLoggingMiddleware,
+    limiter,
+    rate_limit_exceeded_handler,
+    global_exception_handler,
+    http_exception_handler
+)
+from .email_service import email_service
+
+# Structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
 
 # ——————————————————— YENİ: BASIC AUTH ———————————————————
 security = HTTPBasic()
@@ -44,20 +62,42 @@ def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
 # create tables if not exist
 Base.metadata.create_all(bind=engine)
 
-# ——————————————————— GLOBAL AUTH (bütün API ve UI otomatik korunur) ———————————————————
+# ——————————————————— FASTAPI APP WITH ENTERPRISE FEATURES ———————————————————
 app = FastAPI(
-    title="Retail Demo",
-    dependencies=[Depends(verify_auth)]  # ← BU SATIR HER ŞEYİ ŞİFRELİYOR!
+    title="RetailAI - Stok Yönetim Sistemi",
+    description="Enterprise-grade OCR, inventory, and SKT management system",
+    version="1.0.0",
+    dependencies=[Depends(verify_auth)]
 )
 
-# Auth’suz kalmasını istediğin endpoint’ler (rahatlık için)
-@app.get("/health")
-async def health():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+# Exception handlers
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
+# Middleware
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True
 )
+
+# Rate limiter state
+app.state.limiter = limiter
+
+# Health check (no auth required - override global dependency)
+@app.get("/health", tags=["System"], dependencies=[])
+async def health():
+    """Health check endpoint"""
+    logger.info("[HEALTH] Health check requested")
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0"
+    }
 
 # -----------------------------
 # P0-1) Upload + MD5 Duplicate
@@ -541,6 +581,80 @@ def snooze_alert(alert_id: int, body: AlertActionReq = Body(...), db: Session = 
         db.rollback()
         raise
     return {"ok": True, "alert_id": alert_id, "snooze_until": str(snooze_until)}
+
+# -----------------------------
+# Low Stock Alerts (Critical Stock Level)
+# -----------------------------
+@app.get("/alerts/low_stock")
+def get_low_stock_alerts(store_id: int = 1, db: Session = Depends(get_db)):
+    """Get products with low stock levels"""
+    logger.info(f"[LOW_STOCK] Checking low stock for store_id={store_id}")
+
+    # Calculate current stock per product
+    sub = db.query(
+        Batch.product_id,
+        func.sum(Batch.qty_on_hand).label("on_hand")
+    ).filter(
+        Batch.store_id == store_id
+    ).group_by(Batch.product_id).subquery()
+
+    # Get products and their policies
+    results = db.query(
+        sub.c.product_id,
+        sub.c.on_hand,
+        Product.name,
+        Product.sku,
+        ReorderPolicy.min_stock,
+        ReorderPolicy.max_stock
+    ).join(
+        Product, Product.id == sub.c.product_id
+    ).outerjoin(
+        ReorderPolicy,
+        (ReorderPolicy.product_id == sub.c.product_id) &
+        (ReorderPolicy.store_id == store_id)
+    ).all()
+
+    low_stock_items = []
+    for product_id, on_hand, name, sku, min_stock, max_stock in results:
+        min_threshold = min_stock if min_stock is not None else 5.0
+        if on_hand <= min_threshold:
+            severity = "critical" if on_hand <= min_threshold * 0.5 else "warning"
+            low_stock_items.append({
+                "product_id": product_id,
+                "name": name,
+                "sku": sku,
+                "current_stock": float(on_hand),
+                "min_stock": float(min_threshold),
+                "max_stock": float(max_stock) if max_stock else None,
+                "severity": severity,
+                "shortage": float(min_threshold - on_hand)
+            })
+
+    logger.info(f"[LOW_STOCK] Found {len(low_stock_items)} low stock items")
+
+    # Send email for critical items (first time detection)
+    critical_items = [item for item in low_stock_items if item["severity"] == "critical"]
+    if critical_items and email_service.enabled:
+        alert_emails = os.getenv("ALERT_EMAILS", "").split(",")
+        alert_emails = [e.strip() for e in alert_emails if e.strip()]
+        if alert_emails:
+            for item in critical_items[:5]:  # Max 5 emails per check
+                try:
+                    email_service.send_low_stock_alert(
+                        to_emails=alert_emails,
+                        product_name=item["name"],
+                        product_id=item["product_id"],
+                        current_stock=item["current_stock"],
+                        min_stock=item["min_stock"]
+                    )
+                except Exception as e:
+                    logger.error(f"[EMAIL] Failed to send low stock alert: {str(e)}")
+
+    return {
+        "count": len(low_stock_items),
+        "critical_count": len(critical_items),
+        "items": low_stock_items
+    }
 
 # -----------------------------
 # Root & Static (UI da artık şifreli!)

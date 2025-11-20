@@ -13,3 +13,7 @@ python-dateutil
 rapidfuzz
 python-dotenv
 streamlit-authenticator==0.3.2
+
+# Enterprise features
+slowapi
+python-jose[cryptography]
