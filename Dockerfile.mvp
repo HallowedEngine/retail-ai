@@ -1,0 +1,37 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies for PostgreSQL, OCR, and image processing
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    libpq-dev \
+    tesseract-ocr \
+    tesseract-ocr-tur \
+    tesseract-ocr-eng \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements-mvp.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements-mvp.txt
+
+# Copy application code
+COPY ./app ./app
+COPY ./migrations ./migrations
+COPY ./alembic.ini .
+COPY ./.env.mvp .env
+
+# Create necessary directories
+RUN mkdir -p /app/uploads /app/logs
+
+# Expose port
+EXPOSE 8000
+
+# Default command (can be overridden in docker-compose)
+CMD ["uvicorn", "app.main_mvp:app", "--host", "0.0.0.0", "--port", "8000"]

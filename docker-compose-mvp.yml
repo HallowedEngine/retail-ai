@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: retail-ai-postgres
+    environment:
+      POSTGRES_USER: retail_user
+      POSTGRES_PASSWORD: retail_password
+      POSTGRES_DB: retail_mvp
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retail_user -d retail_mvp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - retail-network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: retail-ai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - retail-network
+
+  # FastAPI Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.mvp
+    container_name: retail-ai-app
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://retail_user:retail_password@postgres:5432/retail_mvp
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - JWT_SECRET_KEY=change-this-in-production-min-32-chars-long
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./app:/app/app
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - retail-network
+    command: uvicorn app.main_mvp:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker (for async tasks like OCR)
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.mvp
+    container_name: retail-ai-celery-worker
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://retail_user:retail_password@postgres:5432/retail_mvp
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    volumes:
+      - ./app:/app/app
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - retail-network
+    command: celery -A app.tasks worker --loglevel=info
+
+  # pgAdmin (Database Management - Optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: retail-ai-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@retailai.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - retail-network
+    profiles:
+      - dev  # Only start with: docker-compose --profile dev up
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  retail-network:
+    driver: bridge
