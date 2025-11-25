@@ -146,6 +146,129 @@ async def upload_invoice(
         "lines_preview": lines[:10]
     }
 
+@app.post("/invoice/upload_csv")
+async def upload_invoice_csv(
+    file: UploadFile = File(...),
+    store_id: int = 1,
+    supplier_id: int = 1,
+    db: Session = Depends(get_db)
+):
+    """
+    CSV Fatura Yükleme - Demo için
+    Format: urun_adi,barkod,adet,birim_fiyat,skt_tarihi,kategori
+    """
+    import csv
+    from io import StringIO
+
+    # CSV'yi oku
+    content = await file.read()
+    csv_text = content.decode('utf-8')
+    csv_reader = csv.DictReader(StringIO(csv_text))
+
+    # Fatura oluştur
+    invoice_no = f"CSV-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    inv = Invoice(
+        store_id=store_id,
+        supplier_id=supplier_id,
+        invoice_no=invoice_no,
+        invoice_date=datetime.now().date(),
+        raw_image_path=f"/uploads/csv_{invoice_no}.csv",
+        status="completed",
+        file_hash=f"csv_{secrets.token_hex(8)}"
+    )
+    db.add(inv)
+    db.commit()
+    db.refresh(inv)
+
+    lines_created = 0
+    batches_created = 0
+
+    for row in csv_reader:
+        # Ürün adı ve barkod
+        product_name = row.get('urun_adi', '').strip()
+        barcode = row.get('barkod', '').strip()
+        qty = float(row.get('adet', 0))
+        unit_price = float(row.get('birim_fiyat', 0))
+        skt_str = row.get('skt_tarihi', '').strip()
+        category = row.get('kategori', '').strip()
+
+        if not product_name:
+            continue
+
+        # Ürünü bul veya oluştur
+        product = None
+        if barcode:
+            product = db.query(Product).filter(Product.barcode_gtin == barcode).first()
+
+        if not product:
+            # Yeni ürün oluştur
+            sku = f"SKU{secrets.token_hex(4).upper()}"
+            product = Product(
+                sku=sku,
+                name=product_name,
+                category=category,
+                barcode_gtin=barcode if barcode else None,
+                shelf_life_days=30
+            )
+            db.add(product)
+            db.commit()
+            db.refresh(product)
+
+        # Invoice line oluştur
+        invoice_line = InvoiceLine(
+            invoice_id=inv.id,
+            product_id=product.id,
+            name_raw=product_name,
+            qty=qty,
+            unit="adet",
+            unit_price=unit_price
+        )
+        db.add(invoice_line)
+        lines_created += 1
+
+        # SKT varsa batch oluştur
+        if skt_str:
+            try:
+                # Tarih formatı: 2024-12-03 veya 03.12.2024
+                if '-' in skt_str:
+                    expiry_date = datetime.strptime(skt_str, '%Y-%m-%d').date()
+                elif '.' in skt_str:
+                    expiry_date = datetime.strptime(skt_str, '%d.%m.%Y').date()
+                else:
+                    expiry_date = None
+
+                if expiry_date:
+                    batch = Batch(
+                        product_id=product.id,
+                        store_id=store_id,
+                        lot_code=f"LOT{secrets.token_hex(4).upper()}",
+                        expiry_date=expiry_date,
+                        qty_received=qty,
+                        qty_on_hand=qty,
+                        source_invoice_id=inv.id
+                    )
+                    db.add(batch)
+                    batches_created += 1
+            except Exception:
+                pass  # SKT parse edilemezse skip et
+
+    db.commit()
+
+    # Expiry alert'leri güncelle
+    try:
+        refresh_expiry_alerts(db, store_id, days_window=7)
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "invoice_id": inv.id,
+        "invoice_no": invoice_no,
+        "lines_created": lines_created,
+        "batches_created": batches_created,
+        "message": f"✅ Fatura yüklendi! {lines_created} ürün, {batches_created} batch oluşturuldu."
+    }
+
 # -----------------------------
 # P0-2) Invoice Detay & Satır Güncelle
 # -----------------------------
