@@ -386,6 +386,125 @@ def seed_products(db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True, "count": db.query(Product).count()}
 
+@app.post("/seed/demo_data")
+def seed_demo_data(db: Session = Depends(get_db)):
+    """Kapsamlı demo verisi oluşturur: ürünler, batch'ler, invoice'lar, alert'ler"""
+    from datetime import datetime, timedelta
+    import random
+
+    # 1. Daha fazla ürün ekle
+    demo_products = [
+        {"sku":"SUT1L","name":"Süt 1L","category":"süt","barcode_gtin":"8690000001","shelf_life_days":7},
+        {"sku":"YOG500","name":"Yoğurt 500g","category":"süt","barcode_gtin":"8690000002","shelf_life_days":10},
+        {"sku":"EKM200","name":"Ekmek","category":"fırın","barcode_gtin":"8690000003","shelf_life_days":2},
+        {"sku":"PEY100","name":"Beyaz Peynir 100g","category":"süt","barcode_gtin":"8690000004","shelf_life_days":14},
+        {"sku":"ZYT250","name":"Siyah Zeytin 250g","category":"konserve","barcode_gtin":"8690000005","shelf_life_days":180},
+        {"sku":"DON250","name":"Dondurma 250ml","category":"dondurulmuş","barcode_gtin":"8690000006","shelf_life_days":90},
+        {"sku":"CPS200","name":"Çikolatalı Gofret","category":"atıştırmalık","barcode_gtin":"8690000007","shelf_life_days":120},
+        {"sku":"SOS500","name":"Domates Sosu 500g","category":"konserve","barcode_gtin":"8690000008","shelf_life_days":365},
+        {"sku":"MKR500","name":"Makarna 500g","category":"bakliyat","barcode_gtin":"8690000009","shelf_life_days":540},
+        {"sku":"CAY100","name":"Siyah Çay 100g","category":"içecek","barcode_gtin":"8690000010","shelf_life_days":365},
+        {"sku":"SUY1L","name":"İçme Suyu 1L","category":"içecek","barcode_gtin":"8690000011","shelf_life_days":180},
+        {"sku":"KOL2L","name":"Kola 2L","category":"içecek","barcode_gtin":"8690000012","shelf_life_days":120},
+        {"sku":"BIS300","name":"Bisküvi 300g","category":"atıştırmalık","barcode_gtin":"8690000013","shelf_life_days":150},
+        {"sku":"KRM200","name":"Labne Peyniri 200g","category":"süt","barcode_gtin":"8690000014","shelf_life_days":30},
+        {"sku":"TON150","name":"Ton Balığı Konserve","category":"konserve","barcode_gtin":"8690000015","shelf_life_days":730},
+    ]
+
+    product_ids = []
+    for p_data in demo_products:
+        existing = db.query(Product).filter_by(sku=p_data["sku"]).first()
+        if not existing:
+            p = Product(**p_data)
+            db.add(p)
+            db.flush()
+            product_ids.append(p.id)
+        else:
+            product_ids.append(existing.id)
+
+    db.commit()
+
+    # 2. Batch'ler ekle (bazıları yaklaşan SKT'li)
+    today = datetime.now().date()
+    batches_data = [
+        # Yaklaşan SKT'li ürünler (kırmızı alert)
+        {"product_id": product_ids[0], "expiry_date": today + timedelta(days=2), "qty": 15},  # Süt
+        {"product_id": product_ids[2], "expiry_date": today + timedelta(days=1), "qty": 25},  # Ekmek
+        {"product_id": product_ids[13], "expiry_date": today + timedelta(days=3), "qty": 8},  # Labne
+
+        # Yaklaşan SKT'li (sarı alert)
+        {"product_id": product_ids[1], "expiry_date": today + timedelta(days=5), "qty": 20},  # Yoğurt
+        {"product_id": product_ids[3], "expiry_date": today + timedelta(days=6), "qty": 12},  # Peynir
+        {"product_id": product_ids[5], "expiry_date": today + timedelta(days=7), "qty": 10},  # Dondurma
+
+        # Normal stoklar
+        {"product_id": product_ids[4], "expiry_date": today + timedelta(days=60), "qty": 50},  # Zeytin
+        {"product_id": product_ids[6], "expiry_date": today + timedelta(days=90), "qty": 45},  # Gofret
+        {"product_id": product_ids[7], "expiry_date": today + timedelta(days=200), "qty": 30},  # Domates sosu
+        {"product_id": product_ids[8], "expiry_date": today + timedelta(days=400), "qty": 60},  # Makarna
+        {"product_id": product_ids[9], "expiry_date": today + timedelta(days=250), "qty": 40},  # Çay
+        {"product_id": product_ids[10], "expiry_date": today + timedelta(days=120), "qty": 35},  # Su
+        {"product_id": product_ids[11], "expiry_date": today + timedelta(days=80), "qty": 28},  # Kola
+        {"product_id": product_ids[12], "expiry_date": today + timedelta(days=100), "qty": 22},  # Bisküvi
+    ]
+
+    batch_ids = []
+    for b_data in batches_data:
+        b = Batch(
+            product_id=b_data["product_id"],
+            store_id=1,
+            expiry_date=b_data["expiry_date"],
+            lot_code=f"LOT{random.randint(1000, 9999)}",
+            qty_received=b_data["qty"],
+            qty_on_hand=b_data["qty"]
+        )
+        db.add(b)
+        db.flush()
+        batch_ids.append(b.id)
+
+    db.commit()
+
+    # 3. Invoice'lar oluştur
+    for i in range(3):
+        inv = Invoice(
+            store_id=1,
+            uploaded_by="demo_user",
+            file_path=f"/demo/invoice_{i+1}.jpg",
+            md5_hash=f"demo_hash_{random.randint(10000, 99999)}"
+        )
+        db.add(inv)
+        db.flush()
+
+        # Invoice satırları ekle (4-6 satır)
+        num_lines = random.randint(4, 6)
+        for j in range(num_lines):
+            prod_id = random.choice(product_ids)
+            line = InvoiceLine(
+                invoice_id=inv.id,
+                name_raw=db.query(Product).get(prod_id).name,
+                product_id=prod_id,
+                qty=random.randint(5, 20),
+                unit_price=round(random.uniform(5.0, 50.0), 2)
+            )
+            db.add(line)
+
+    db.commit()
+
+    # 4. Expiry alert'leri yenile
+    from app.logic import refresh_expiry_alerts
+    refresh_expiry_alerts(db, store_id=1, days=7)
+
+    # İstatistikler
+    stats = {
+        "products": db.query(Product).count(),
+        "batches": db.query(Batch).count(),
+        "invoices": db.query(Invoice).count(),
+        "invoice_lines": db.query(InvoiceLine).count(),
+        "expiry_alerts": db.query(ExpiryAlert).count()
+    }
+
+    return {"ok": True, "message": "Demo data created successfully", "stats": stats}
+
 @app.post("/batch/scan_from_image")
 async def batch_scan_from_image(
     file: UploadFile = File(...),

@@ -22,6 +22,47 @@ Tamamen offline çalışır, SaaS hazır!
 git clone https://github.com/HallowedEngine/retail-ai.git
 cd retail-ai
 python -m venv venv
-venv\Scripts\activate
+venv\Scripts\activate  # Linux/Mac: source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
+
+## 🚀 Hızlı Demo Verisi Yükleme
+
+Dashboard'ı sentetik verilerle doldurmak için:
+
+```bash
+# 1. Kapsamlı demo verisi yükle (15 ürün + batch'ler + invoice'lar + alert'ler)
+curl -X POST http://localhost:8000/seed/demo_data -u admin:retailai2025
+
+# Demo verisi içeriği:
+# ✅ 15 ürün (süt, fırın, konserve, içecek, atıştırmalık)
+# ✅ 14 batch (6 yaklaşan SKT'li, 8 normal stok)
+# ✅ 3 invoice (her biri 4-6 satır)
+# ✅ Otomatik expiry alert'leri
+```
+
+### 📋 Bulk Import için CSV Kullanımı
+
+Örnek CSV dosyası: `sample_products_bulk_import.csv`
+
+```bash
+# Web arayüzünden:
+1. http://localhost:8000/ui/
+2. "Bulk Import" menüsüne tıkla
+3. "sample_products_bulk_import.csv" dosyasını seç
+4. "Önizle" → "Toplu Yükle"
+```
+
+**CSV Format:**
+```csv
+sku,name,category,barcode_gtin,shelf_life_days,image_url
+AYR100,Ayran 200ml,süt,8690000016,7,https://via.placeholder.com/150
+KRP250,Tereyağı 250g,süt,8690000017,60,https://via.placeholder.com/150
+```
+
+## 🔐 Giriş Bilgileri
+
+```
+Username: admin
+Password: retailai2025
