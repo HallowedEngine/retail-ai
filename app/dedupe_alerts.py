@@ -20,10 +20,14 @@ def dedupe():
     keep_ids = [r[0] for r in s.execute(text(keep_sql)).fetchall()]
     if not keep_ids:
         print("Silinecek duplicate yok.")
+        s.close()
         return
-    # Sil: expiry_alerts tablosundaki id'leri keep_ids dışında bırak
-    delete_sql = "DELETE FROM expiry_alerts WHERE id NOT IN :keep"
-    s.execute(text("DELETE FROM expiry_alerts WHERE id NOT IN (:ids)"), {"ids": ",".join(str(x) for x in keep_ids)})
+    # Sil: expiry_alerts tablosundaki id'leri keep_ids dışında bırak (SQL injection güvenli)
+    from sqlalchemy import bindparam
+    placeholders = ",".join([f":id{i}" for i in range(len(keep_ids))])
+    delete_sql = f"DELETE FROM expiry_alerts WHERE id NOT IN ({placeholders})"
+    params = {f"id{i}": keep_ids[i] for i in range(len(keep_ids))}
+    s.execute(text(delete_sql), params)
     s.commit()
     print("Dedupe tamamlandı. Korunan kayıt sayısı:", len(keep_ids))
     s.close()

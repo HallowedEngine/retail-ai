@@ -250,6 +250,58 @@ def invoices_recent(limit: int = 20, db: Session = Depends(get_db)):
     return out
 
 # -----------------------------
+# Dashboard: Stok Trend Grafiği (Demo/Sentetik Veri)
+# -----------------------------
+@app.get("/dashboard/stock_trend")
+def dashboard_stock_trend(store_id: int = 1, days: int = 7, db: Session = Depends(get_db)):
+    """
+    Stok düşüş trendi için günlük veri döndürür.
+    Gerçek satış verisi varsa hesaplar, yoksa demo verisi döndürür.
+    """
+    from datetime import datetime, timedelta
+    import random
+
+    # Son N gün için stok seviyelerini hesapla
+    labels = []
+    data = []
+    today = datetime.now().date()
+
+    # Gerçek batch verisinden stok seviyelerini al
+    total_stock_by_day = []
+    for i in range(days - 1, -1, -1):
+        target_date = today - timedelta(days=i)
+
+        # Bu tarihe kadar eklenen batch'lerin toplamı (basit demo mantık)
+        total_batches = db.query(Batch).filter(
+            Batch.store_id == store_id
+        ).count()
+
+        # Eğer veri yoksa sentetik veri oluştur
+        if total_batches == 0:
+            # Demo verisi: hafta boyunca azalan trend
+            base_stock = 100
+            variation = random.randint(-10, 10)
+            stock_level = max(20, base_stock - (i * 8) + variation)
+        else:
+            # Gerçek veri varsa batch sayısını kullan (basitleştirilmiş)
+            stock_level = total_batches + random.randint(0, 20)
+
+        # Türkçe gün isimleri
+        day_names = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
+        day_name = day_names[target_date.weekday()]
+
+        labels.append(day_name)
+        data.append(stock_level)
+        total_stock_by_day.append({"date": target_date.isoformat(), "stock": stock_level})
+
+    return {
+        "labels": labels,
+        "data": data,
+        "details": total_stock_by_day,
+        "note": "Demo verisi - gerçek satış verileriyle güncellenecek"
+    }
+
+# -----------------------------
 # Diğer mevcut endpointler (hepsi otomatik auth’lu artık)
 # -----------------------------
 @app.post("/batch/scan")

@@ -184,13 +184,95 @@ function attachSaveButtons() {
   });
 }
 
-// Typeahead kodu (senin orijinal + ufak güzelleştirme)
-function createDropdown(input) { /* aynı */ }
-function placeDropdown(input, dd) { /* aynı */ }
-function attachTypeaheadToInput(input) { /* senin kodun, sadece ufak düzeltme */ }
+// Typeahead autocomplete implementasyonu
+function createDropdown(input) {
+  const dd = document.createElement('div');
+  dd.className = 'typeahead-dropdown';
+  dd.style.display = 'none';
+  document.body.appendChild(dd);
+  return dd;
+}
+
+function placeDropdown(input, dd) {
+  const rect = input.getBoundingClientRect();
+  dd.style.left = rect.left + 'px';
+  dd.style.top = (rect.bottom + window.scrollY) + 'px';
+  dd.style.width = Math.max(rect.width, 300) + 'px';
+}
+
+function attachTypeaheadToInput(input) {
+  let dropdown = input._dropdown;
+  if (!dropdown) {
+    dropdown = createDropdown(input);
+    input._dropdown = dropdown;
+  }
+
+  const handler = async (e) => {
+    const q = e.target.value.trim();
+    if (q.length < 2) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/products?limit=10`);
+      if (!resp.ok) throw new Error('Ürün arama hatası');
+      const products = await resp.json();
+
+      // Filtreleme: ID, barkod veya isme göre
+      const filtered = products.filter(p =>
+        String(p.id).includes(q) ||
+        (p.barcode && p.barcode.includes(q)) ||
+        (p.name && p.name.toLowerCase().includes(q.toLowerCase()))
+      ).slice(0, 8);
+
+      if (filtered.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      dropdown.innerHTML = '';
+      filtered.forEach(p => {
+        const div = document.createElement('div');
+        div.innerHTML = `<strong>${p.name || 'İsimsiz'}</strong><br><span style="font-size:12px;color:#666;">ID: ${p.id} | Barkod: ${p.barcode || '-'}</span>`;
+        div.onclick = () => {
+          input.value = p.id;
+          dropdown.style.display = 'none';
+
+          // Matched name'i güncelle
+          const matchedDiv = input.closest('td').querySelector('.text-sm');
+          if (matchedDiv) {
+            matchedDiv.innerHTML = `<strong class="text-green-600">${p.name || 'Eşleşti'}</strong>`;
+          }
+        };
+        dropdown.appendChild(div);
+      });
+
+      placeDropdown(input, dropdown);
+      dropdown.style.display = 'block';
+    } catch (err) {
+      console.error('Typeahead hatası:', err);
+      dropdown.style.display = 'none';
+    }
+  };
+
+  // Önceki handler'ı temizle ve yenisini ekle
+  if (input._typeaheadHandler) {
+    input.removeEventListener('input', input._typeaheadHandler);
+  }
+  input._typeaheadHandler = handler;
+  input.addEventListener('input', handler);
+
+  // Dropdown'u dışarı tıklayınca kapat
+  document.addEventListener('click', (e) => {
+    if (e.target !== input && dropdown) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
 function initInvoiceTypeaheads() {
   document.querySelectorAll('.product-choice[data-line-id]').forEach(inp => {
-    inp.removeEventListener('input', inp._typeaheadHandler);
     attachTypeaheadToInput(inp);
   });
 }
