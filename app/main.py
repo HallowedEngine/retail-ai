@@ -388,27 +388,76 @@ def seed_products(db: Session = Depends(get_db)):
 
 @app.post("/seed/demo_data")
 def seed_demo_data(db: Session = Depends(get_db)):
-    """Kapsamlı demo verisi oluşturur: ürünler, batch'ler, invoice'lar, alert'ler"""
+    """Gerçekçi market demo verisi oluşturur - sunuma hazır!"""
     from datetime import datetime, timedelta
     import random
 
-    # 1. Daha fazla ürün ekle
+    # 1. Gerçekçi Market Ürünleri (50+ ürün)
     demo_products = [
-        {"sku":"SUT1L","name":"Süt 1L","category":"süt","barcode_gtin":"8690000001","shelf_life_days":7},
-        {"sku":"YOG500","name":"Yoğurt 500g","category":"süt","barcode_gtin":"8690000002","shelf_life_days":10},
-        {"sku":"EKM200","name":"Ekmek","category":"fırın","barcode_gtin":"8690000003","shelf_life_days":2},
-        {"sku":"PEY100","name":"Beyaz Peynir 100g","category":"süt","barcode_gtin":"8690000004","shelf_life_days":14},
-        {"sku":"ZYT250","name":"Siyah Zeytin 250g","category":"konserve","barcode_gtin":"8690000005","shelf_life_days":180},
-        {"sku":"DON250","name":"Dondurma 250ml","category":"dondurulmuş","barcode_gtin":"8690000006","shelf_life_days":90},
-        {"sku":"CPS200","name":"Çikolatalı Gofret","category":"atıştırmalık","barcode_gtin":"8690000007","shelf_life_days":120},
-        {"sku":"SOS500","name":"Domates Sosu 500g","category":"konserve","barcode_gtin":"8690000008","shelf_life_days":365},
-        {"sku":"MKR500","name":"Makarna 500g","category":"bakliyat","barcode_gtin":"8690000009","shelf_life_days":540},
-        {"sku":"CAY100","name":"Siyah Çay 100g","category":"içecek","barcode_gtin":"8690000010","shelf_life_days":365},
-        {"sku":"SUY1L","name":"İçme Suyu 1L","category":"içecek","barcode_gtin":"8690000011","shelf_life_days":180},
-        {"sku":"KOL2L","name":"Kola 2L","category":"içecek","barcode_gtin":"8690000012","shelf_life_days":120},
-        {"sku":"BIS300","name":"Bisküvi 300g","category":"atıştırmalık","barcode_gtin":"8690000013","shelf_life_days":150},
-        {"sku":"KRM200","name":"Labne Peyniri 200g","category":"süt","barcode_gtin":"8690000014","shelf_life_days":30},
-        {"sku":"TON150","name":"Ton Balığı Konserve","category":"konserve","barcode_gtin":"8690000015","shelf_life_days":730},
+        # SÜT ÜRÜNLERİ
+        {"sku":"SUT1L","name":"Süt Tam Yağlı 1L","category":"Süt Ürünleri","barcode_gtin":"8690504321001","shelf_life_days":7},
+        {"sku":"YOG500","name":"Yoğurt Yağlı 500g","category":"Süt Ürünleri","barcode_gtin":"8690504321002","shelf_life_days":10},
+        {"sku":"PEY500","name":"Beyaz Peynir 500g","category":"Süt Ürünleri","barcode_gtin":"8690504321003","shelf_life_days":30},
+        {"sku":"KSR350","name":"Kaşar Peynir 350g","category":"Süt Ürünleri","barcode_gtin":"8690504321004","shelf_life_days":45},
+        {"sku":"TRY250","name":"Tereyağı 250g","category":"Süt Ürünleri","barcode_gtin":"8690504321005","shelf_life_days":90},
+        {"sku":"AYR250","name":"Ayran 250ml","category":"Süt Ürünleri","barcode_gtin":"8690504322003","shelf_life_days":7},
+
+        # FIRIN ÜRÜNLERİ
+        {"sku":"EKM350","name":"Taze Ekmek 350g","category":"Fırın","barcode_gtin":"8690504321006","shelf_life_days":1},
+        {"sku":"SMT4","name":"Simit 4'lü","category":"Fırın","barcode_gtin":"8690504321007","shelf_life_days":1},
+        {"sku":"KPK350","name":"Kepek Ekmeği","category":"Fırın","barcode_gtin":"8690504321008","shelf_life_days":2},
+
+        # SEBZE-MEYVE
+        {"sku":"DOM1K","name":"Domates 1kg","category":"Sebze-Meyve","barcode_gtin":"8690504321009","shelf_life_days":5},
+        {"sku":"SAL1K","name":"Salatalık 1kg","category":"Sebze-Meyve","barcode_gtin":"8690504321010","shelf_life_days":5},
+        {"sku":"BIB1K","name":"Biber 1kg","category":"Sebze-Meyve","barcode_gtin":"8690504321011","shelf_life_days":5},
+        {"sku":"ELM1K","name":"Elma 1kg","category":"Sebze-Meyve","barcode_gtin":"8690504321012","shelf_life_days":14},
+        {"sku":"MUZ1K","name":"Muz 1kg","category":"Sebze-Meyve","barcode_gtin":"8690504321013","shelf_life_days":7},
+        {"sku":"POR1K","name":"Portakal 1kg","category":"Sebze-Meyve","barcode_gtin":"8690504321014","shelf_life_days":10},
+
+        # ET-TAVUK
+        {"sku":"TVK1K","name":"Tavuk But 1kg","category":"Et-Tavuk","barcode_gtin":"8690504321015","shelf_life_days":3},
+        {"sku":"KYM1K","name":"Kıyma 1kg","category":"Et-Tavuk","barcode_gtin":"8690504321016","shelf_life_days":2},
+        {"sku":"KUS1K","name":"Dana Kuşbaşı 1kg","category":"Et-Tavuk","barcode_gtin":"8690504321017","shelf_life_days":3},
+
+        # TEMEL GIDA
+        {"sku":"MKR500","name":"Makarna 500g","category":"Temel Gıda","barcode_gtin":"8690504321018","shelf_life_days":540},
+        {"sku":"PRN1K","name":"Pirinç 1kg","category":"Temel Gıda","barcode_gtin":"8690504321019","shelf_life_days":365},
+        {"sku":"MER1K","name":"Mercimek 1kg","category":"Temel Gıda","barcode_gtin":"8690504321020","shelf_life_days":365},
+        {"sku":"NHT1K","name":"Nohut 1kg","category":"Temel Gıda","barcode_gtin":"8690504321021","shelf_life_days":365},
+        {"sku":"BLG1K","name":"Bulgur 1kg","category":"Temel Gıda","barcode_gtin":"8690504321022","shelf_life_days":365},
+        {"sku":"TUZ1K","name":"Tuz 1kg","category":"Temel Gıda","barcode_gtin":"8690504321023","shelf_life_days":730},
+        {"sku":"SKR1K","name":"Şeker 1kg","category":"Temel Gıda","barcode_gtin":"8690504321024","shelf_life_days":730},
+        {"sku":"YAG1L","name":"Ayçiçek Yağı 1L","category":"Temel Gıda","barcode_gtin":"8690504321025","shelf_life_days":365},
+
+        # KAHVALTIILIK
+        {"sku":"ZYT500","name":"Zeytin 500g","category":"Kahvaltılık","barcode_gtin":"8690504321026","shelf_life_days":180},
+        {"sku":"RCL380","name":"Reçel 380g","category":"Kahvaltılık","barcode_gtin":"8690504321027","shelf_life_days":365},
+        {"sku":"BAL450","name":"Bal 450g","category":"Kahvaltılık","barcode_gtin":"8690504321028","shelf_life_days":730},
+
+        # İÇECEK
+        {"sku":"CAY500","name":"Çay 500g","category":"İçecek","barcode_gtin":"8690504321029","shelf_life_days":365},
+        {"sku":"KHV200","name":"Kahve 200g","category":"İçecek","barcode_gtin":"8690504321030","shelf_life_days":365},
+        {"sku":"SUY1.5","name":"Su 1.5L","category":"İçecek","barcode_gtin":"8690504322001","shelf_life_days":365},
+        {"sku":"KOL2.5","name":"Kola 2.5L","category":"İçecek","barcode_gtin":"8690504322002","shelf_life_days":180},
+        {"sku":"MYS1L","name":"Meyve Suyu 1L","category":"İçecek","barcode_gtin":"8690504322004","shelf_life_days":180},
+
+        # ATIŞTIRMALIK
+        {"sku":"CLK80","name":"Çikolata 80g","category":"Atıştırmalık","barcode_gtin":"8690504322005","shelf_life_days":180},
+        {"sku":"CPS150","name":"Cips 150g","category":"Atıştırmalık","barcode_gtin":"8690504322006","shelf_life_days":120},
+        {"sku":"BIS200","name":"Bisküvi 200g","category":"Atıştırmalık","barcode_gtin":"8690504322007","shelf_life_days":150},
+        {"sku":"KRK100","name":"Kraker 100g","category":"Atıştırmalık","barcode_gtin":"8690504322008","shelf_life_days":120},
+
+        # TEMİZLİK
+        {"sku":"TUV16","name":"Tuvalet Kağıdı 16'lı","category":"Temizlik","barcode_gtin":"8690504322009","shelf_life_days":730},
+        {"sku":"BLS1L","name":"Bulaşık Deterjanı 1L","category":"Temizlik","barcode_gtin":"8690504322010","shelf_life_days":730},
+        {"sku":"CMS3K","name":"Çamaşır Deterjanı 3kg","category":"Temizlik","barcode_gtin":"8690504322011","shelf_life_days":730},
+        {"sku":"SBN6","name":"Sabun 6'lı","category":"Temizlik","barcode_gtin":"8690504322012","shelf_life_days":730},
+
+        # KİŞİSEL BAKIM
+        {"sku":"SMP500","name":"Şampuan 500ml","category":"Kişisel Bakım","barcode_gtin":"8690504322013","shelf_life_days":730},
+        {"sku":"DSM100","name":"Diş Macunu 100ml","category":"Kişisel Bakım","barcode_gtin":"8690504322014","shelf_life_days":730},
+        {"sku":"TRS5","name":"Traş Bıçağı 5'li","category":"Kişisel Bakım","barcode_gtin":"8690504322015","shelf_life_days":1095},
     ]
 
     product_ids = []
@@ -424,31 +473,32 @@ def seed_demo_data(db: Session = Depends(get_db)):
 
     db.commit()
 
-    # 2. Batch'ler ekle (bazıları yaklaşan SKT'li)
+    # 2. Gerçekçi Batch'ler (stok durumu)
     today = datetime.now().date()
     batches_data = [
-        # Yaklaşan SKT'li ürünler (kırmızı alert)
-        {"product_id": product_ids[0], "expiry_date": today + timedelta(days=2), "qty": 15},  # Süt
-        {"product_id": product_ids[2], "expiry_date": today + timedelta(days=1), "qty": 25},  # Ekmek
-        {"product_id": product_ids[13], "expiry_date": today + timedelta(days=3), "qty": 8},  # Labne
+        # ACIL SKT (1-3 gün) - %20 indirim önerileri
+        {"product_id": product_ids[0], "expiry_date": today + timedelta(days=2), "qty": 24},  # Süt
+        {"product_id": product_ids[6], "expiry_date": today + timedelta(days=1), "qty": 50},  # Ekmek
+        {"product_id": product_ids[16], "expiry_date": today + timedelta(days=2), "qty": 15},  # Kıyma
+        {"product_id": product_ids[5], "expiry_date": today + timedelta(days=3), "qty": 18},  # Ayran
 
-        # Yaklaşan SKT'li (sarı alert)
+        # YAKIN SKT (4-7 gün) - %10 indirim önerileri
         {"product_id": product_ids[1], "expiry_date": today + timedelta(days=5), "qty": 20},  # Yoğurt
-        {"product_id": product_ids[3], "expiry_date": today + timedelta(days=6), "qty": 12},  # Peynir
-        {"product_id": product_ids[5], "expiry_date": today + timedelta(days=7), "qty": 10},  # Dondurma
+        {"product_id": product_ids[2], "expiry_date": today + timedelta(days=6), "qty": 12},  # Peynir
+        {"product_id": product_ids[13], "expiry_date": today + timedelta(days=7), "qty": 30},  # Muz
+        {"product_id": product_ids[9], "expiry_date": today + timedelta(days=4), "qty": 40},  # Domates
 
-        # Normal stoklar
-        {"product_id": product_ids[4], "expiry_date": today + timedelta(days=60), "qty": 50},  # Zeytin
-        {"product_id": product_ids[6], "expiry_date": today + timedelta(days=90), "qty": 45},  # Gofret
-        {"product_id": product_ids[7], "expiry_date": today + timedelta(days=200), "qty": 30},  # Domates sosu
-        {"product_id": product_ids[8], "expiry_date": today + timedelta(days=400), "qty": 60},  # Makarna
-        {"product_id": product_ids[9], "expiry_date": today + timedelta(days=250), "qty": 40},  # Çay
-        {"product_id": product_ids[10], "expiry_date": today + timedelta(days=120), "qty": 35},  # Su
-        {"product_id": product_ids[11], "expiry_date": today + timedelta(days=80), "qty": 28},  # Kola
-        {"product_id": product_ids[12], "expiry_date": today + timedelta(days=100), "qty": 22},  # Bisküvi
+        # NORMAL STOK
+        {"product_id": product_ids[3], "expiry_date": today + timedelta(days=30), "qty": 8},  # Kaşar
+        {"product_id": product_ids[4], "expiry_date": today + timedelta(days=60), "qty": 15},  # Tereyağı
+        {"product_id": product_ids[18], "expiry_date": today + timedelta(days=400), "qty": 60},  # Makarna
+        {"product_id": product_ids[19], "expiry_date": today + timedelta(days=250), "qty": 40},  # Pirinç
+        {"product_id": product_ids[29], "expiry_date": today + timedelta(days=300), "qty": 30},  # Çay
+        {"product_id": product_ids[31], "expiry_date": today + timedelta(days=200), "qty": 100},  # Su
+        {"product_id": product_ids[34], "expiry_date": today + timedelta(days=120), "qty": 50},  # Çikolata
+        {"product_id": product_ids[38], "expiry_date": today + timedelta(days=600), "qty": 25},  # Tuvalet Kağıdı
     ]
 
-    batch_ids = []
     for b_data in batches_data:
         b = Batch(
             product_id=b_data["product_id"],
@@ -459,40 +509,40 @@ def seed_demo_data(db: Session = Depends(get_db)):
             qty_on_hand=b_data["qty"]
         )
         db.add(b)
-        db.flush()
-        batch_ids.append(b.id)
 
     db.commit()
 
-    # 3. Invoice'lar oluştur
-    for i in range(3):
+    # 3. Faturalar (son 5 gün)
+    for i in range(5):
         inv = Invoice(
             store_id=1,
             supplier_id=1,
-            invoice_no=f"DEMO-INV-{i+1:03d}",
-            raw_image_path=f"/demo/invoice_{i+1}.jpg",
-            status="parsed",
-            file_hash=f"demo_hash_{random.randint(10000, 99999)}"
+            invoice_no=f"MRK-2024-{1100 + i}",
+            invoice_date=(datetime.now() - timedelta(days=4-i)).date(),
+            raw_image_path=f"/uploads/invoice_{i+1}.csv",
+            status="completed",
+            file_hash=f"hash_{random.randint(100000, 999999)}"
         )
         db.add(inv)
         db.flush()
 
-        # Invoice satırları ekle (4-6 satır)
-        num_lines = random.randint(4, 6)
+        # Her faturada 5-10 ürün
+        num_lines = random.randint(5, 10)
         for j in range(num_lines):
             prod_id = random.choice(product_ids)
+            product = db.query(Product).get(prod_id)
             line = InvoiceLine(
                 invoice_id=inv.id,
-                name_raw=db.query(Product).get(prod_id).name,
+                name_raw=product.name,
                 product_id=prod_id,
-                qty=random.randint(5, 20),
-                unit_price=round(random.uniform(5.0, 50.0), 2)
+                qty=random.randint(10, 50),
+                unit_price=round(random.uniform(10.0, 150.0), 2)
             )
             db.add(line)
 
     db.commit()
 
-    # 4. Expiry alert'leri yenile
+    # 4. Expiry alert'leri oluştur
     from app.logic import refresh_expiry_alerts
     refresh_expiry_alerts(db, store_id=1, days_window=7)
 
@@ -505,7 +555,17 @@ def seed_demo_data(db: Session = Depends(get_db)):
         "expiry_alerts": db.query(ExpiryAlert).count()
     }
 
-    return {"ok": True, "message": "Demo data created successfully", "stats": stats}
+    return {
+        "ok": True,
+        "message": "✅ Gerçekçi market demo verisi hazır!",
+        "stats": stats,
+        "demo_info": {
+            "product_categories": ["Süt Ürünleri", "Fırın", "Sebze-Meyve", "Et-Tavuk", "Temel Gıda", "Kahvaltılık", "İçecek", "Atıştırmalık", "Temizlik", "Kişisel Bakım"],
+            "urgent_skt": 4,
+            "near_skt": 4,
+            "invoices_last_week": 5
+        }
+    }
 
 @app.post("/batch/scan_from_image")
 async def batch_scan_from_image(
