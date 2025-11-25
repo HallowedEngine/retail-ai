@@ -468,9 +468,11 @@ def seed_demo_data(db: Session = Depends(get_db)):
     for i in range(3):
         inv = Invoice(
             store_id=1,
-            uploaded_by="demo_user",
-            file_path=f"/demo/invoice_{i+1}.jpg",
-            md5_hash=f"demo_hash_{random.randint(10000, 99999)}"
+            supplier_id=1,
+            invoice_no=f"DEMO-INV-{i+1:03d}",
+            raw_image_path=f"/demo/invoice_{i+1}.jpg",
+            status="parsed",
+            file_hash=f"demo_hash_{random.randint(10000, 99999)}"
         )
         db.add(inv)
         db.flush()
