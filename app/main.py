@@ -827,6 +827,30 @@ def dashboard_summary(store_id: int = 1, days: int = 7, db: Session = Depends(ge
         "actionable_tasks": actionable_tasks  # Yeni: İşe yarar görevler!
     }
 
+@app.post("/migrate/add_status_columns")
+def migrate_add_status_columns(db: Session = Depends(get_db)):
+    """Manually add status and snooze_until columns to expiry_alerts"""
+    try:
+        from sqlalchemy import text
+        # Check if columns exist
+        cols = [r[1] for r in db.execute(text("PRAGMA table_info(expiry_alerts)")).fetchall()]
+
+        added = []
+        if "status" not in cols:
+            db.execute(text("ALTER TABLE expiry_alerts ADD COLUMN status TEXT DEFAULT 'new'"))
+            added.append("status")
+
+        if "snooze_until" not in cols:
+            db.execute(text("ALTER TABLE expiry_alerts ADD COLUMN snooze_until DATE"))
+            added.append("snooze_until")
+
+        db.commit()
+        return {"ok": True, "message": "Columns added successfully", "added": added}
+    except Exception as e:
+        db.rollback()
+        import traceback
+        return {"ok": False, "error": str(e), "traceback": traceback.format_exc()}
+
 @app.get("/alerts/expiry/full")
 def alerts_expiry_full(store_id: int = 1, days: int = 30, db: Session = Depends(get_db)):
     try:
