@@ -246,7 +246,7 @@ def invoices_recent(limit: int = 20, db: Session = Depends(get_db)):
     out = []
     for inv in q:
         cnt = db.query(InvoiceLine).filter_by(invoice_id=inv.id).count()
-        out.append({"id": inv.id, "created_at": inv.created_at.isoisoformat() if inv.created_at else None, "line_count": cnt})
+        out.append({"id": inv.id, "created_at": inv.created_at.isoformat() if inv.created_at else None, "line_count": cnt})
     return out
 
 # -----------------------------
