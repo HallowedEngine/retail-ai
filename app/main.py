@@ -494,7 +494,7 @@ def seed_demo_data(db: Session = Depends(get_db)):
 
     # 4. Expiry alert'leri yenile
     from app.logic import refresh_expiry_alerts
-    refresh_expiry_alerts(db, store_id=1, days=7)
+    refresh_expiry_alerts(db, store_id=1, days_window=7)
 
     # İstatistikler
     stats = {
