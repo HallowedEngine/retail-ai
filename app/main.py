@@ -621,8 +621,10 @@ def startup_migrations_and_checks():
 
 @app.get("/dashboard/summary")
 def dashboard_summary(store_id: int = 1, days: int = 7, db: Session = Depends(get_db)):
+    from datetime import datetime, timedelta
+
     try:
-        refresh_expiry_alerts(db, store_id, days)
+        refresh_expiry_alerts(db, store_id, days_window=days)
     except Exception:
         pass
 
@@ -636,8 +638,116 @@ def dashboard_summary(store_id: int = 1, days: int = 7, db: Session = Depends(ge
     except Exception:
         expiry_count = 0
 
-    recent_invoices_q = db.query(Invoice).order_by(Invoice.id.desc()).limit(5).all()
-    recent = [{"id": inv.id, "created_at": inv.created_at.isoformat() if inv.created_at else None} for inv in recent_invoices_q]
+    # Aksiyon öğeleri oluştur (gerçekten işe yarar görevler)
+    actionable_tasks = []
+
+    # 1. SKT yaklaşan ürünler için indirim önerileri
+    try:
+        urgent_alerts = db.query(ExpiryAlert).join(Product).filter(
+            ExpiryAlert.store_id == store_id,
+            ExpiryAlert.days_left <= 3,
+            (ExpiryAlert.status == None) | (ExpiryAlert.status != 'ack')
+        ).order_by(ExpiryAlert.days_left.asc()).limit(3).all()
+
+        for alert in urgent_alerts:
+            product = db.query(Product).get(alert.product_id)
+            if product:
+                discount = 20 if alert.days_left <= 1 else 15 if alert.days_left <= 2 else 10
+                reyon = f"Reyon {(alert.product_id % 4) + 1}"  # Simüle reyon numarası
+                actionable_tasks.append({
+                    "type": "discount",
+                    "priority": "urgent" if alert.days_left <= 1 else "high",
+                    "title": f"{product.name} - %{discount} indirime çıkart",
+                    "description": f"{reyon}'de SKT {alert.days_left} gün kaldı",
+                    "action": "İndirimi uygula",
+                    "product_id": product.id,
+                    "days_left": alert.days_left
+                })
+    except Exception as e:
+        pass
+
+    # 2. Stok azalan ürünler için sipariş önerileri
+    try:
+        sub = db.query(Batch.product_id, func.sum(Batch.qty_on_hand).label("on_hand")).group_by(Batch.product_id).subquery()
+        rows = db.query(sub.c.product_id, sub.c.on_hand).all()
+
+        low_stock_items = []
+        for pid, on_hand in rows:
+            pol = db.query(ReorderPolicy).filter_by(store_id=store_id, product_id=pid).first()
+            min_stock = pol.min_stock if pol else 5
+            if on_hand <= min_stock:
+                product = db.query(Product).get(pid)
+                if product:
+                    low_stock_items.append((product, on_hand, min_stock))
+
+        # İlk 2 düşük stok ürünü için görev ekle
+        for product, on_hand, min_stock in low_stock_items[:2]:
+            reorder_qty = max(20, min_stock * 3)  # Minimum 20 veya min_stock'un 3 katı
+            actionable_tasks.append({
+                "type": "reorder",
+                "priority": "high",
+                "title": f"{product.name} - {reorder_qty} adet sipariş ver",
+                "description": f"Stokta sadece {int(on_hand)} adet kaldı (min: {min_stock})",
+                "action": "Sipariş oluştur",
+                "product_id": product.id,
+                "reorder_qty": reorder_qty
+            })
+    except Exception as e:
+        pass
+
+    # 3. Yeni teslimat uyarıları (simüle - son invoice'lardan)
+    try:
+        recent_inv = db.query(Invoice).order_by(Invoice.id.desc()).first()
+        if recent_inv and len(actionable_tasks) < 5:
+            # Simüle teslimat zamanı (3-5 gün sonra)
+            delivery_hours = 72 + ((recent_inv.id % 3) * 24)  # 3-5 gün
+            delivery_date = datetime.now() + timedelta(hours=delivery_hours)
+            days = delivery_hours // 24
+            hours = delivery_hours % 24
+
+            actionable_tasks.append({
+                "type": "delivery",
+                "priority": "normal",
+                "title": f"Yeni ürün teslimatı {days} gün {hours} saat sonra",
+                "description": f"Reyon 2-3 arası alan hazırlanmalı (Tahmini: {delivery_date.strftime('%d.%m %H:%M')})",
+                "action": "Alanı hazırla",
+                "delivery_date": delivery_date.isoformat()
+            })
+    except Exception:
+        pass
+
+    # 4. Depo/reyon düzenleme önerileri (SKT'ye göre)
+    try:
+        middle_range_alerts = db.query(ExpiryAlert).join(Product).filter(
+            ExpiryAlert.store_id == store_id,
+            ExpiryAlert.days_left > 3,
+            ExpiryAlert.days_left <= 7,
+            (ExpiryAlert.status == None) | (ExpiryAlert.status != 'ack')
+        ).limit(2).all()
+
+        for alert in middle_range_alerts:
+            product = db.query(Product).get(alert.product_id)
+            if product and len(actionable_tasks) < 5:
+                actionable_tasks.append({
+                    "type": "organize",
+                    "priority": "normal",
+                    "title": f"{product.name} - Depo'da öne çıkart",
+                    "description": f"SKT {alert.days_left} gün - FIFO için ön sıraya",
+                    "action": "Düzenle",
+                    "product_id": product.id
+                })
+    except Exception:
+        pass
+
+    # Eğer hiç görev yoksa, genel öneriler ekle
+    if len(actionable_tasks) == 0:
+        actionable_tasks.append({
+            "type": "info",
+            "priority": "normal",
+            "title": "Stok durumu iyi görünüyor! ✨",
+            "description": "Yaklaşan SKT veya düşük stok yok",
+            "action": "Devam et"
+        })
 
     low_stock_count = 0
     try:
@@ -654,7 +764,7 @@ def dashboard_summary(store_id: int = 1, days: int = 7, db: Session = Depends(ge
     return {
         "expiry_count": expiry_count,
         "low_stock_count": low_stock_count,
-        "recent_invoices": recent
+        "actionable_tasks": actionable_tasks  # Yeni: İşe yarar görevler!
     }
 
 @app.get("/alerts/expiry/full")
