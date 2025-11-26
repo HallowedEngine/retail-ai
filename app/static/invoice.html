@@ -38,8 +38,24 @@
 
     <div class="p-8">
 
+      <!-- CSV Fatura Yükleme -->
+      <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 mb-8 border-2 border-green-200">
+        <h2 class="text-xl font-bold text-green-800 mb-4">📄 CSV Fatura Yükle</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Format: <code class="bg-white px-2 py-1 rounded">urun_adi, barkod, adet, birim_fiyat, skt_tarihi, kategori</code>
+        </p>
+        <div class="flex flex-wrap items-center gap-4">
+          <input type="file" id="csvFileInvoice" accept=".csv" class="border-2 border-green-300 rounded-lg px-4 py-2 bg-white" />
+          <button id="btnUploadCSV" class="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-3 rounded-lg shadow transition">
+            Yükle & İşle
+          </button>
+        </div>
+        <div id="csvMsg" class="mt-4 font-medium"></div>
+      </div>
+
       <!-- Kontrol Paneli -->
       <div class="bg-gray-50 rounded-xl p-6 mb-8 border">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">🔍 Fatura Görüntüle</h2>
         <div class="flex flex-wrap items-center gap-4">
           <label class="font-medium">
             Fatura ID:
@@ -184,21 +200,156 @@ function attachSaveButtons() {
   });
 }
 
-// Typeahead kodu (senin orijinal + ufak güzelleştirme)
-function createDropdown(input) { /* aynı */ }
-function placeDropdown(input, dd) { /* aynı */ }
-function attachTypeaheadToInput(input) { /* senin kodun, sadece ufak düzeltme */ }
+// Typeahead autocomplete implementasyonu
+function createDropdown(input) {
+  const dd = document.createElement('div');
+  dd.className = 'typeahead-dropdown';
+  dd.style.display = 'none';
+  document.body.appendChild(dd);
+  return dd;
+}
+
+function placeDropdown(input, dd) {
+  const rect = input.getBoundingClientRect();
+  dd.style.left = rect.left + 'px';
+  dd.style.top = (rect.bottom + window.scrollY) + 'px';
+  dd.style.width = Math.max(rect.width, 300) + 'px';
+}
+
+function attachTypeaheadToInput(input) {
+  let dropdown = input._dropdown;
+  if (!dropdown) {
+    dropdown = createDropdown(input);
+    input._dropdown = dropdown;
+  }
+
+  const handler = async (e) => {
+    const q = e.target.value.trim();
+    if (q.length < 2) {
+      dropdown.style.display = 'none';
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/products?limit=10`);
+      if (!resp.ok) throw new Error('Ürün arama hatası');
+      const products = await resp.json();
+
+      // Filtreleme: ID, barkod veya isme göre
+      const filtered = products.filter(p =>
+        String(p.id).includes(q) ||
+        (p.barcode && p.barcode.includes(q)) ||
+        (p.name && p.name.toLowerCase().includes(q.toLowerCase()))
+      ).slice(0, 8);
+
+      if (filtered.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      dropdown.innerHTML = '';
+      filtered.forEach(p => {
+        const div = document.createElement('div');
+        div.innerHTML = `<strong>${p.name || 'İsimsiz'}</strong><br><span style="font-size:12px;color:#666;">ID: ${p.id} | Barkod: ${p.barcode || '-'}</span>`;
+        div.onclick = () => {
+          input.value = p.id;
+          dropdown.style.display = 'none';
+
+          // Matched name'i güncelle
+          const matchedDiv = input.closest('td').querySelector('.text-sm');
+          if (matchedDiv) {
+            matchedDiv.innerHTML = `<strong class="text-green-600">${p.name || 'Eşleşti'}</strong>`;
+          }
+        };
+        dropdown.appendChild(div);
+      });
+
+      placeDropdown(input, dropdown);
+      dropdown.style.display = 'block';
+    } catch (err) {
+      console.error('Typeahead hatası:', err);
+      dropdown.style.display = 'none';
+    }
+  };
+
+  // Önceki handler'ı temizle ve yenisini ekle
+  if (input._typeaheadHandler) {
+    input.removeEventListener('input', input._typeaheadHandler);
+  }
+  input._typeaheadHandler = handler;
+  input.addEventListener('input', handler);
+
+  // Dropdown'u dışarı tıklayınca kapat
+  document.addEventListener('click', (e) => {
+    if (e.target !== input && dropdown) {
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
 function initInvoiceTypeaheads() {
   document.querySelectorAll('.product-choice[data-line-id]').forEach(inp => {
-    inp.removeEventListener('input', inp._typeaheadHandler);
     attachTypeaheadToInput(inp);
   });
 }
 
 document.getElementById("btnLoad").addEventListener("click", () => {
   const id = document.getElementById("invId").value.trim();
-  if (!id) return alert("Firuta ID gir kanka");
+  if (!id) return alert("Fatura ID gir lütfen");
   loadInvoice(id);
+});
+
+// CSV Fatura Yükleme
+document.getElementById("btnUploadCSV").addEventListener("click", async () => {
+  const fileInput = document.getElementById("csvFileInvoice");
+  const msgDiv = document.getElementById("csvMsg");
+  const btn = document.getElementById("btnUploadCSV");
+
+  if (!fileInput.files || fileInput.files.length === 0) {
+    msgDiv.innerHTML = '<span class="text-red-600">❌ CSV dosyası seç lütfen</span>';
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('store_id', '1');
+  formData.append('supplier_id', '1');
+
+  btn.disabled = true;
+  btn.innerHTML = 'Yükleniyor...';
+  msgDiv.innerHTML = '<span class="text-blue-600">⏳ İşleniyor...</span>';
+
+  try {
+    const response = await fetch('/invoice/upload_csv', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': 'Basic ' + btoa('admin:retailai2025')
+      }
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.ok) {
+      msgDiv.innerHTML = `<span class="text-green-600">✅ ${result.message}<br/>
+        📄 Fatura No: <strong>${result.invoice_no}</strong> (ID: ${result.invoice_id})<br/>
+        📦 ${result.lines_created} ürün, ${result.batches_created} batch oluşturuldu</span>`;
+
+      // Otomatik olarak yeni faturayı göster
+      setTimeout(() => {
+        document.getElementById('invId').value = result.invoice_id;
+        loadInvoice(result.invoice_id);
+      }, 1500);
+    } else {
+      msgDiv.innerHTML = `<span class="text-red-600">❌ Hata: ${result.message || 'Bilinmeyen hata'}</span>`;
+    }
+  } catch (error) {
+    msgDiv.innerHTML = `<span class="text-red-600">❌ Bağlantı hatası: ${error.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Yükle & İşle';
+  }
 });
 
 // Sayfa açılışta ?id= varsa otomatik yükle

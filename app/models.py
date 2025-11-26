@@ -68,6 +68,8 @@ class ExpiryAlert(Base):
     expiry_date = Column(Date)
     days_left = Column(Integer)
     severity = Column(String)  # red / yellow
+    status = Column(String, default='new', nullable=True)  # new / ack / resolved
+    snooze_until = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
 

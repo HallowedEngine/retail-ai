@@ -80,6 +80,16 @@
         </div>
       </section>
 
+      <section class="mt-6 bg-white p-4 rounded shadow">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Stok Trendi (Son 7 Gün)</h2>
+          <div class="text-xs text-gray-400" id="chartNote">Demo verisi</div>
+        </div>
+        <div style="position: relative; height: 250px;">
+          <canvas id="stockTrendChart"></canvas>
+        </div>
+      </section>
+
       <footer class="mt-8 text-sm text-gray-400">
         RetailAI © <span id="year"></span> — Demo & Pilot amaçlı. Sunumda müşteri onayı ile logo/isim değiştirilebilir.
       </footer>
@@ -124,20 +134,39 @@
       saveEl.textContent = saveEstimate;
       saveMeta.textContent = 'Tahmini günlük tasarruf';
 
-      // recent invoices -> todoRows
-      const rec = j.recent_invoices || [];
+      // Actionable tasks (işe yarar görevler)
+      const tasks = j.actionable_tasks || [];
       todoRows.innerHTML = '';
-      if(rec.length === 0){
-        todoRows.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Gösterilecek öğe yok</td></tr>';
+      if(tasks.length === 0){
+        todoRows.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Gösterilecek görev yok</td></tr>';
       } else {
-        rec.forEach(inv => {
+        tasks.forEach(task => {
           const tr = document.createElement('tr');
-          tr.className = 'border-t';
+          tr.className = 'border-t hover:bg-gray-50';
+
+          // Priority badge renkleri
+          let priorityBadge = '';
+          if(task.priority === 'urgent') {
+            priorityBadge = '<span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded">Acil</span>';
+          } else if(task.priority === 'high') {
+            priorityBadge = '<span class="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded">Yüksek</span>';
+          } else {
+            priorityBadge = '<span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">Normal</span>';
+          }
+
+          // Task icon
+          let icon = '📋';
+          if(task.type === 'discount') icon = '🏷️';
+          else if(task.type === 'reorder') icon = '📦';
+          else if(task.type === 'delivery') icon = '🚚';
+          else if(task.type === 'organize') icon = '📍';
+          else if(task.type === 'info') icon = '✨';
+
           tr.innerHTML = `
-            <td class="py-2">Invoice #${inv.id}</td>
-            <td class="py-2 text-gray-600">Satır: ${inv.line_count ?? '-'}</td>
-            <td class="py-2">İncele</td>
-            <td class="py-2 text-right"><a class="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded" href="/ui/invoice.html?invoice_id=${inv.id}">Aç</a></td>
+            <td class="py-3"><span class="text-lg mr-2">${icon}</span><strong>${task.title}</strong></td>
+            <td class="py-3 text-sm text-gray-600">${task.description}</td>
+            <td class="py-3">${priorityBadge}</td>
+            <td class="py-3 text-right"><button class="text-xs px-3 py-1 bg-green-50 text-green-700 hover:bg-green-100 rounded font-medium">${task.action}</button></td>
           `;
           todoRows.appendChild(tr);
         });
@@ -155,12 +184,6 @@
     }
   }
 
-  // ilk yükleme ve periyodik yenileme (60s)
-  window.addEventListener('load', () => {
-    loadDashboard();
-    setInterval(loadDashboard, 60000);
-  });
-
   // Demo/uyarı butonu: alerts sayfasına yönlendir
   document.getElementById('btnDemo').addEventListener('click', () => {
     window.location.href = '/ui/alerts.html';
@@ -174,35 +197,85 @@
     // Eğer ürün arama endpoint'in varsa burayı değiştir: fetch(`/products/search?q=${encodeURIComponent(q)}`)
     resEl.textContent = 'arama desteklenmiyor (implementasyon gerek)';
   });
+
+  // Stok Trend Grafiği (Gerçek Veri)
+  let stockChart = null;
+  async function loadStockTrendChart() {
+    try {
+      const resp = await fetch('/dashboard/stock_trend?store_id=1&days=7', {cache:'no-store'});
+      if(!resp.ok) throw new Error('Grafik verisi yüklenemedi');
+      const chartData = await resp.json();
+
+      const ctx = document.getElementById('stockTrendChart').getContext('2d');
+
+      // Önceki chart varsa yok et
+      if (stockChart) {
+        stockChart.destroy();
+      }
+
+      stockChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartData.labels,
+          datasets: [{
+            label: 'Stok Seviyesi',
+            data: chartData.data,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value) {
+                  return value + ' adet';
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Chart note güncelle
+      if (chartData.note) {
+        document.getElementById('chartNote').textContent = chartData.note;
+      }
+    } catch (err) {
+      console.error('Grafik yükleme hatası:', err);
+      document.getElementById('chartNote').textContent = 'Grafik yüklenemedi';
+    }
+  }
+
+  // İlk yükleme ve periyodik yenileme (60s)
+  window.addEventListener('load', () => {
+    loadDashboard();
+    loadStockTrendChart();
+    setInterval(() => {
+      loadDashboard();
+      loadStockTrendChart();
+    }, 60000);
+  });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<canvas id="stockChart" height="100"></canvas>
-
-<script>
-// Dashboard summary çek
-fetch("/dashboard/summary")
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById("expiryCount").textContent = data.expiry_count || 0;
-    document.getElementById("lowStockCount").textContent = data.low_stock_count || 0;
-  });
-
-// Basit trend grafiği (örnek veri, sonra gerçek yaparız)
-new Chart(document.getElementById("stockChart"), {
-  type: "line",
-  data: {
-    labels: ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"],
-    datasets: [{
-      label: "Stok Düşüş Trendi",
-      data: [65, 59, 80, 81, 56, 55, 40],
-      borderColor: "#ef4444",
-      backgroundColor: "rgba(239, 68, 68, 0.1)",
-      tension: 0.4
-    }]
-  },
-  options: { plugins: { legend: { display: false } } }
-});
-</script>
 
 
 
