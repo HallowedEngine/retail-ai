@@ -38,8 +38,24 @@
 
     <div class="p-8">
 
+      <!-- CSV Fatura Yükleme -->
+      <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 mb-8 border-2 border-green-200">
+        <h2 class="text-xl font-bold text-green-800 mb-4">📄 CSV Fatura Yükle</h2>
+        <p class="text-sm text-gray-600 mb-4">
+          Format: <code class="bg-white px-2 py-1 rounded">urun_adi, barkod, adet, birim_fiyat, skt_tarihi, kategori</code>
+        </p>
+        <div class="flex flex-wrap items-center gap-4">
+          <input type="file" id="csvFileInvoice" accept=".csv" class="border-2 border-green-300 rounded-lg px-4 py-2 bg-white" />
+          <button id="btnUploadCSV" class="bg-green-600 hover:bg-green-700 text-white font-bold px-8 py-3 rounded-lg shadow transition">
+            Yükle & İşle
+          </button>
+        </div>
+        <div id="csvMsg" class="mt-4 font-medium"></div>
+      </div>
+
       <!-- Kontrol Paneli -->
       <div class="bg-gray-50 rounded-xl p-6 mb-8 border">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">🔍 Fatura Görüntüle</h2>
         <div class="flex flex-wrap items-center gap-4">
           <label class="font-medium">
             Fatura ID:
@@ -281,6 +297,59 @@ document.getElementById("btnLoad").addEventListener("click", () => {
   const id = document.getElementById("invId").value.trim();
   if (!id) return alert("Fatura ID gir lütfen");
   loadInvoice(id);
+});
+
+// CSV Fatura Yükleme
+document.getElementById("btnUploadCSV").addEventListener("click", async () => {
+  const fileInput = document.getElementById("csvFileInvoice");
+  const msgDiv = document.getElementById("csvMsg");
+  const btn = document.getElementById("btnUploadCSV");
+
+  if (!fileInput.files || fileInput.files.length === 0) {
+    msgDiv.innerHTML = '<span class="text-red-600">❌ CSV dosyası seç lütfen</span>';
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('store_id', '1');
+  formData.append('supplier_id', '1');
+
+  btn.disabled = true;
+  btn.innerHTML = 'Yükleniyor...';
+  msgDiv.innerHTML = '<span class="text-blue-600">⏳ İşleniyor...</span>';
+
+  try {
+    const response = await fetch('/invoice/upload_csv', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Authorization': 'Basic ' + btoa('admin:retailai2025')
+      }
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.ok) {
+      msgDiv.innerHTML = `<span class="text-green-600">✅ ${result.message}<br/>
+        📄 Fatura No: <strong>${result.invoice_no}</strong> (ID: ${result.invoice_id})<br/>
+        📦 ${result.lines_created} ürün, ${result.batches_created} batch oluşturuldu</span>`;
+
+      // Otomatik olarak yeni faturayı göster
+      setTimeout(() => {
+        document.getElementById('invId').value = result.invoice_id;
+        loadInvoice(result.invoice_id);
+      }, 1500);
+    } else {
+      msgDiv.innerHTML = `<span class="text-red-600">❌ Hata: ${result.message || 'Bilinmeyen hata'}</span>`;
+    }
+  } catch (error) {
+    msgDiv.innerHTML = `<span class="text-red-600">❌ Bağlantı hatası: ${error.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Yükle & İşle';
+  }
 });
 
 // Sayfa açılışta ?id= varsa otomatik yükle
